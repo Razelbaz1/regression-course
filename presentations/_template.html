@@ -1,0 +1,124 @@
+<!doctype html>
+<!--
+  Lesson NN — <Topic>
+  Template skeleton: copy to lesson_NN.html and fill in.
+  Inherits palette and components from sibling shared/ directory.
+-->
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=1920, initial-scale=1">
+  <title>Lesson NN — <Topic></title>
+
+  <link rel="stylesheet" href="shared/palette.css">
+  <link rel="stylesheet" href="shared/components.css">
+  <link rel="stylesheet" href="shared/styles.css">
+
+  <!-- KaTeX for math (CDN — same version everywhere) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+          onload="renderMathInElement(document.body, {delimiters: [{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}]});"></script>
+</head>
+
+<body>
+
+  <!-- --------- Top navigation --------- -->
+  <header class="lesson-nav">
+    <a href="lesson_PREV.html">← השיעור הקודם</a>
+    <span class="lesson-name">Lesson NN — <Topic></span>
+    <a href="lesson_NEXT.html">השיעור הבא →</a>
+  </header>
+
+  <main>
+
+    <!-- --------- Title banner --------- -->
+    <div class="lesson-title-banner">
+      <h1>Regression Course — Lesson NN</h1>
+      <div class="subtitle"><Topic in English / Hebrew></div>
+      <span class="pill">חטיבה: <Linear / Logistic / Poisson / NB></span>
+    </div>
+
+    <!-- --------- Reminder from previous lesson --------- -->
+    <div class="prev-reminder">
+      <strong>תזכורת מהשיעור הקודם:</strong> <one-sentence summary>
+    </div>
+
+    <!-- --------- Table of Contents --------- -->
+    <nav class="toc">
+      <h2>תוכן עניינים</h2>
+      <ol>
+        <li><a href="#block-1">פרק 1 — <כותרת></a></li>
+        <li><a href="#block-2">פרק 2 — <כותרת></a></li>
+        <!-- ... -->
+        <li><a href="#summary">סיכום + הצצה לשיעור הבא</a></li>
+      </ol>
+    </nav>
+
+    <!-- --------- Block 1 --------- -->
+    <!-- NOTE: HTML id stays "block-N" (matches lesson_NN.md "### בלוק N" so the
+         alignment validation passes). Only user-facing text uses "פרק". -->
+    <section class="block" id="block-1">
+      <div class="section-banner">
+        <h2>פרק 1 — <כותרת פרק></h2>
+      </div>
+
+      <p><טקסט הסבר></p>
+
+      <!-- Optional: Q&A. Use the toggle/answer pattern ONLY for questions with a
+           definite, student-relevant answer. For surveys ("מי כבר ראה X?") or
+           opinion prompts, drop <button> and <div class="answer"> — keep just
+           the <div class="question">. Never put TA delivery notes in .answer. -->
+      <div class="qa">
+        <div class="question">שאלה לכיתה: <שאלה>?</div>
+        <button class="toggle-btn">גלה תשובה</button>
+        <div class="answer"><תשובה></div>
+      </div>
+
+      <!-- Optional: callout for key takeaway -->
+      <div class="callout">
+        <h3>נקודה חשובה</h3>
+        <p><טקסט></p>
+      </div>
+
+      <!-- Optional: formula -->
+      <div class="formula-box">
+        $\hat{Y_i} = \hat{b_0} + \hat{b_1} x_i$
+      </div>
+      <!-- Optional: code-switch marker. Click copies the cell number to clipboard
+           (TA pastes into JupyterLab cell navigation). Direct URL navigation to
+           a specific cell is NOT supported — see feedback_html_conventions.md. -->
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תא N</span> (תיאור קצר).
+        </span>
+      </div>
+    </section>
+
+    <!-- --------- Additional blocks (copy block above) --------- -->
+
+    <!-- --------- Summary --------- -->
+    <section class="block" id="summary">
+      <div class="section-banner">
+        <h2>סיכום + הצצה לשיעור הבא</h2>
+      </div>
+      <ul>
+        <li>Take-away 1</li>
+        <li>Take-away 2</li>
+      </ul>
+      <div class="callout callout--accent">
+        <h3>בשיעור הבא</h3>
+        <p><הצצה></p>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="lesson-footer">
+    Regression Course — Lesson NN · TA: Raz Elbaz · עודכן: <date>
+  </footer>
+
+  <script src="shared/interactivity.js"></script>
+</body>
+</html>

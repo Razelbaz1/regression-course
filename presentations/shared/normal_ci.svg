@@ -1,0 +1,53 @@
+<svg viewBox="0 0 480 240" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Normal distribution with 95% confidence interval shaded">
+  <!-- Reusable across lessons. Standard normal curve with 95% center shaded
+       (between -1.96σ and +1.96σ) and 2.5% tails on each side. -->
+
+  <defs>
+    <style>
+      .axis    { stroke: #444; stroke-width: 1.5; }
+      .grid    { stroke: #444; stroke-width: 1; stroke-dasharray: 3 2; }
+      .center-line { stroke: #444; stroke-width: 1; stroke-dasharray: 2 3; opacity: 0.4; }
+      .curve   { fill: none; stroke: #0077b6; stroke-width: 2.4; }
+      .center  { fill: #d9effc; stroke: none; }
+      .tail    { fill: #fbcaca; stroke: none; }
+      .label   { font-family: 'Heebo', system-ui, sans-serif; font-size: 13px; fill: #333; }
+      .pct     { font-family: 'Heebo', system-ui, sans-serif; font-size: 24px; fill: #0a5773; font-weight: 700; }
+      .pct-tail{ font-family: 'Heebo', system-ui, sans-serif; font-size: 12px; fill: #993333; font-weight: 600; }
+    </style>
+  </defs>
+
+  <!-- Left tail (x < -1.96): 2.5% -->
+  <path class="tail" d="M 40 190 L 40 189.65 L 60 188.88 L 80 186.83 L 100 182.08 L 120 172.40 L 128 166.64 L 128 190 Z"/>
+
+  <!-- Center 95% (between -1.96 and 1.96) -->
+  <path class="center" d="M 128 190 L 128 166.64 L 140 155.48 L 160 130.12 L 180 98.04 L 200 65.08 L 220 39.92 L 240 30.44 L 260 39.92 L 280 65.08 L 300 98.04 L 320 130.12 L 340 155.48 L 352 166.64 L 352 190 Z"/>
+
+  <!-- Right tail (x > 1.96): 2.5% -->
+  <path class="tail" d="M 352 190 L 352 166.64 L 360 172.40 L 380 182.08 L 400 186.83 L 420 188.88 L 440 189.65 L 440 190 Z"/>
+
+  <!-- Curve outline -->
+  <polyline class="curve" points="40,189.65 60,188.88 80,186.83 100,182.08 120,172.40 140,155.48 160,130.12 180,98.04 200,65.08 220,39.92 240,30.44 260,39.92 280,65.08 300,98.04 320,130.12 340,155.48 360,172.40 380,182.08 400,186.83 420,188.88 440,189.65"/>
+
+  <!-- Critical-value markers -->
+  <line class="grid" x1="128" y1="190" x2="128" y2="166.64"/>
+  <line class="grid" x1="352" y1="190" x2="352" y2="166.64"/>
+  <line class="center-line" x1="240" y1="190" x2="240" y2="30"/>
+
+  <!-- Baseline -->
+  <line class="axis" x1="40" y1="190" x2="440" y2="190"/>
+
+  <!-- Big center label -->
+  <text class="pct" x="240" y="115" text-anchor="middle">95%</text>
+
+  <!-- Tail labels -->
+  <text class="pct-tail" x="80" y="180" text-anchor="middle">2.5%</text>
+  <text class="pct-tail" x="400" y="180" text-anchor="middle">2.5%</text>
+
+  <!-- X-axis labels -->
+  <text class="label" x="240" y="212" text-anchor="middle">θ̂ (point estimate)</text>
+  <text class="label" x="128" y="212" text-anchor="middle">θ̂ − 1.96·SE</text>
+  <text class="label" x="352" y="212" text-anchor="middle">θ̂ + 1.96·SE</text>
+
+  <!-- Subtitle -->
+  <text class="label" x="240" y="232" text-anchor="middle" style="font-style:italic; fill:#666;">95% confidence interval</text>
+</svg>

@@ -1,0 +1,123 @@
+/* ============================================================
+   Base styles — לייאאוט, RTL, FHD optimization
+   target: 1920×1080 projector / 15.6" laptop screen
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap');
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg-page);
+  color: var(--text-default);
+  font-family: 'Heebo', system-ui, -apple-system, sans-serif;
+  font-size: 18px;
+  line-height: 1.6;
+  direction: rtl;
+}
+
+main {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 24px 48px 64px 48px;
+}
+
+/* --- Headings --- */
+h1, h2, h3, h4 {
+  margin: 0;
+  line-height: 1.3;
+  color: var(--text-title);
+}
+
+h1 { font-size: 40px; font-weight: 700; }
+h2 { font-size: 28px; font-weight: 600; }
+h3 { font-size: 22px; font-weight: 600; }
+h4 { font-size: 18px; font-weight: 600; }
+
+/* --- LTR overrides for code, formulas, English terms --- */
+code, pre, .ltr {
+  direction: ltr;
+  unicode-bidi: isolate;
+  font-family: 'Consolas', 'Monaco', monospace;
+}
+
+/* --- KaTeX math: isolate from RTL parent so super/subscripts render correctly ---
+   Without this, $R^2$ in an RTL container renders as ²R because the bidi algorithm
+   reorders the absolutely-positioned msupsub element relative to its base. --- */
+.katex, .katex-display {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+.katex-display {
+  text-align: center;
+}
+
+pre {
+  background: var(--bg-soft);
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  padding: 12px 16px;
+  overflow-x: auto;
+  font-size: 16px;
+}
+
+/* --- Header / nav --- */
+header.lesson-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 24px;
+  background: var(--bg-banner);
+  border-bottom: 2px solid var(--border-banner);
+  font-size: 16px;
+}
+
+header.lesson-nav a {
+  color: var(--text-body);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+header.lesson-nav a:hover {
+  text-decoration: underline;
+}
+
+header.lesson-nav .lesson-name {
+  font-weight: 700;
+  color: var(--text-title);
+}
+
+/* --- Block sections --- */
+section.block {
+  margin: 36px 0;
+  scroll-margin-top: 60px;
+}
+
+/* --- Footer --- */
+footer.lesson-footer {
+  margin-top: 64px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border-soft);
+  text-align: center;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+/* --- Responsive: 15.6" laptop (1366×768) fallback --- */
+@media (max-width: 1400px) {
+  main { padding: 20px 32px 48px 32px; }
+  html, body { font-size: 16px; }
+  h1 { font-size: 34px; }
+  h2 { font-size: 24px; }
+  h3 { font-size: 20px; }
+}
+
+/* --- Print mode (for handouts) --- */
+@media print {
+  header.lesson-nav, .code-switch { display: none; }
+  main { max-width: 100%; padding: 0; }
+}

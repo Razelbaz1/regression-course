@@ -1,0 +1,439 @@
+<!doctype html>
+<!--
+  Lesson 01 — OLS Foundations & statsmodels
+  Aligned with: lesson_plans/lesson_01.md (8 blocks + summary)
+  Notebook anchor: regression-course/lesson1/notebooks/Lesson1_linear_regression_Tirgul.ipynb (41 cells)
+-->
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=1920, initial-scale=1">
+  <title>Lesson 01 — OLS Foundations & statsmodels</title>
+
+  <link rel="stylesheet" href="shared/palette.css">
+  <link rel="stylesheet" href="shared/components.css">
+  <link rel="stylesheet" href="shared/styles.css">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+          onload="renderMathInElement(document.body, {delimiters: [{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}]});"></script>
+</head>
+
+<body>
+
+  <header class="lesson-nav">
+    <span>שיעור ראשון בסמסטר</span>
+    <span class="lesson-name">Lesson 01 — OLS Foundations & statsmodels</span>
+    <a href="lesson_02.html">השיעור הבא: Transformations <bdi dir="ltr">→</bdi></a>
+  </header>
+
+  <main>
+
+    <div class="lesson-title-banner">
+      <h1>Regression Course — Lesson 01</h1>
+      <div class="subtitle">OLS Foundations & statsmodels — היכרות עם רגרסיה לינארית</div>
+      <span class="pill">פרק: Linear (1/6)</span>
+    </div>
+
+    <div class="callout">
+      <h3>ברוכים הבאים לקורס רגרסיה</h3>
+      <p> בכל שאלה — חומר, תרגול, פרויקט, או רעיון שצף תוך כדי — אל תהססו לפנות אליי במייל: <code class="ltr">raze@ariel.ac.il</code>.</p>
+      <p style="margin-top:14px;">לאורך הסמסטר נצא למסע מ-<i>"מה הנתונים מנסים להגיד לי?"</i> ל-<i>"איך אני בונה מודל שיודע לחזות?"</i>. נתחיל ברגרסיה לינארית הקלאסית — שאיתה אפשר לחזות גובה, מחירים, חומרת תאונה. משם נעלה למודלים מתוחכמים יותר: <b>לוגיסטי</b> (כן/לא — האם המכונה תיכשל?), <b>פואסון</b> (כמה תאונות יקרו החודש?), ובסוף <b>בינומי שלילי</b> — כשהפואסון לא מספיק.</p>
+      <p style="margin-top:14px;">הקורס בנוי כך שכל שיעור משלב <b>תיאוריה</b> (למה זה עובד) עם <b class="ltr">hands on</b> (איך זה נראה בקוד). בסוף הסמסטר יהיה לכם ארגז כלים אמיתי.</p>
+    </div>
+
+    <nav class="toc">
+      <h2>תוכן עניינים</h2>
+      <ol>
+        <li><a href="#block-1">פרק 1 — פתיחה ואג'נדה</a></li>
+        <li><a href="#block-2">פרק 2 — סיפור הדאטה (מפעל הזיקוקים)</a></li>
+        <li><a href="#block-3">פרק 3 — Statsmodels OLS &amp; גרף</a></li>
+        <li><a href="#block-4">פרק 4 — משוואה ופיתוח ידני</a></li>
+        <li><a href="#block-5">פרק 5 — $R^2$ ויזואלית</a></li>
+        <li><a href="#block-6">פרק 6 — חיזוי ואקסטרפולציה</a></li>
+        <li><a href="#block-7">פרק 7 — איכות המודל</a></li>
+        <li><a href="#block-8">פרק 8 — 3 הנחות המודל</a></li>
+        <li><a href="#summary">סיכום + הצצה לשיעור 2</a></li>
+      </ol>
+    </nav>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 1 — Opening & Agenda (cells 0–3 · 0:00–0:02)                  -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-1">
+      <div class="section-banner">
+        <h2>פרק 1 — פתיחה ואג'נדה</h2>
+      </div>
+
+      <p>בשיעור הראשון נכיר את <b>רגרסיה לינארית</b> — הכלי הסטטיסטי הבסיסי ביותר. נראה איך עובדים עם <code>statsmodels</code>, נחזה תופעה אמיתית מהשטח, ונבחן עד כמה הצלחנו.</p>
+
+      <div class="callout">
+        <h3>מה נעשה היום</h3>
+        <ul>
+          <li>הצגת משוואת רגרסיה</li>
+          <li>OLS — Ordinary Least Squares</li>
+          <li>הוספת עמודת constant ל-intercept</li>
+          <li>הצגה אלגברית של המשוואה</li>
+          <li>$R^2$ ובדיקת הנחות המודל</li>
+          <li>בדיקת מובהקות (hypothesis testing) על הפרמטרים</li>
+        </ul>
+      </div>
+
+      <div class="callout">
+        <h3>הספרייה שאיתה נעבוד — <span class="ltr">statsmodels</span></h3>
+        <p><b class="ltr">statsmodels</b> היא הספרייה הסטטיסטית הסטנדרטית של פייתון. היא מתמחה במודלים סטטיסטיים קלאסיים — רגרסיה, ANOVA, סדרות זמן — ומחזירה דוחות מפורטים: מקדמים, p-values, רווחי סמך, בדיקות דיאגנוסטיות.</p>
+        <p style="margin-top:10px;">בניגוד ל-<code class="ltr">scikit-learn</code> שמתמקדת בשאלת "<i>מה החיזוי?</i>", <code class="ltr">statsmodels</code> עונה על "<i>מה משמעות כל פרמטר ואם המודל בכלל מתאים</i>". זו הספרייה שתלווה אותנו לאורך כל הקורס.</p>
+      </div>
+
+      <div class="qa">
+        <div class="question">שאלה לכיתה: מי כבר ראה רגרסיה לינארית בעבר?</div>
+      </div>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תאים 0–2</span> (כותרת + ייבוא ספריות).
+        </span>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 2 — Data story (cells 4–7 · 0:02–0:07)                        -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-2">
+      <div class="section-banner">
+        <h2>פרק 2 — סיפור הדאטה (מפעל הזיקוקים)</h2>
+      </div>
+
+      <div class="callout">
+        <h3>שאלת כיתה — מפעל לזיקוקי דינור</h3>
+        <p>במפעל לייצור זיקוקי דינור עובדים מתמודדים עם חומרים מסוכנים. לכל עובד <b>מספר שונה של שנות ניסיון</b>, ומדי פעם מתרחשות פציעות בעבודה. החומרה מדורגת בציון <b>0–100</b>.</p>
+        <p><b>המשימה:</b> בנו מודל שחוזה את <b>חומרת הפציעה (Y)</b> כתלות ב<b>שנות הניסיון (X)</b>.</p>
+      </div>
+
+      <div class="qa">
+        <div class="question">שאלה לכיתה: מי לדעתכם יסבול מתאונה חמורה יותר — מתחיל או ותיק?</div>
+      </div>
+
+      <p><b>הדאטה:</b> 45 נקודות, X מ-2 עד 12 שנים. עמודת <code>intercept</code> נוספת אוטומטית על-ידי <code>sm.add_constant</code> — נחזור לזה בפרק 3.</p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תאים 3–5</span> (באנר סיפור · טעינת pkl · הצגת DataFrame.head()).
+        </span>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 3 — Statsmodels OLS & graph (cells 8–11 · 0:07–0:14)          -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-3">
+      <div class="section-banner">
+        <h2>פרק 3 — Statsmodels OLS &amp; גרף</h2>
+      </div>
+
+      <p>הריצה הראשונה של מודל. ה-<code>summary()</code> מחזיר <b>הרבה</b> שדות — נסתכל על 4 העיקריים.</p>
+
+      <div class="callout callout--accent">
+        <h3>סדר קריאה מה-summary</h3>
+        <ol>
+          <li><b>$R^2 = 0.718$</b> — "72% מהשונות בחומרה מוסברת על-ידי ניסיון."</li>
+          <li><b>coefs:</b> $\hat{b}_0 = 99.95$, $\hat{b}_1 = -3.05$ — "מקדם <span style="color:#0077b6">שלילי</span>: יותר ניסיון = פחות חומרה. עקבי?"</li>
+          <li><b>p-values $= 0.000$</b> — "הקשר מובהק סטטיסטית, לא צירוף מקרים."</li>
+          <li><b>95% CI</b> (העמודות <code class="ltr">[0.025  0.975]</code>) — לדוגמה $\hat{b}_1 \in [-3.6, -2.5]$. הטווח לא כולל את $0$ <bdi dir="ltr">⇒</bdi> אנחנו בטוחים שהפרמטר שונה מ-$0$.</li>
+        </ol>
+      </div>
+
+      <div class="callout">
+        <h3>📊 העשרה: רווח סמך, מובהקות, וההתפלגות שמאחורי המספרים</h3>
+
+        <p><b>מה זה "סטטיסטי"?</b> אנחנו עובדים עם <b>מדגם</b> בן 45 עובדים, לא עם כל אוכלוסיית עובדי המפעלים בעולם. כל אומדן שאנחנו מחשבים — $\hat{b}_1$, $R^2$, וכו' — הוא הערכה ל-"ערך האמיתי" באוכלוסייה. סטטיסטיקה היא הכלי שמודד כמה אי-ודאות יש באומדן הזה.</p>
+
+        <p style="margin-top:12px;"><b>מה זה רווח סמך (Confidence Interval)?</b> אם נדגום שוב ושוב 45 עובדים מאותה אוכלוסייה ונחשב $\hat{b}_1$ בכל פעם — נקבל <b>ערכים שונים</b> בכל דגימה (כי הדאטה עצמו משתנה). ההתפלגות של האומדנים האלה נורמלית בקירוב, סביב הערך האמיתי. <b>רווח סמך 95%</b> הוא הטווח שתופס 95% מההתפלגות הזו:</p>
+
+        <div style="text-align:center; margin:14px 0;">
+          <img src="shared/normal_ci.svg" alt="התפלגות נורמלית עם 95% רווח סמך מסומן" style="max-width:100%; width:480px; height:auto;"/>
+        </div>
+
+        <p><b>הנוסחה:</b></p>
+        <div class="formula-box">
+          $\hat{b}_1 \pm t_{\alpha/2} \cdot SE(\hat{b}_1)$
+        </div>
+        <p>$SE$ היא השגיאה הסטנדרטית של האומדן (מופיעה ב-summary בעמודת <code class="ltr">std err</code>). $t_{\alpha/2} \approx 1.96$ ל-95% רווח סמך בדגימות גדולות.</p>
+
+        <p style="margin-top:12px;"><b>רמת מובהקות ($\alpha$)</b> — הסיכון לטעות מסוג ראשון: לדחות את ההשערה ש-$b_1 = 0$ בעוד שבמציאות $b_1$ באמת $0$. הסטנדרט הוא $\alpha = 0.05$ (5%). אם $\text{p-value} < \alpha$ <bdi dir="ltr">⇒</bdi> אנחנו דוחים ואומרים "הקשר אמיתי".</p>
+
+        <p style="margin-top:12px;"><b>הקשר בין השלושה:</b> רווח סמך 95% ו-p-value עם סף $0.05$ הם <i>אותו רעיון</i> מנקודות מבט שונות:</p>
+        <ul>
+          <li><b>רווח סמך 95%:</b> "הטווח שתופס את הפרמטר ב-95% מהדגימות החוזרות."</li>
+          <li><b>$\text{p-value} < 0.05$:</b> "הסיכוי לקבל אומדן רחוק כל-כך מ-$0$ אם באמת $b_1 = 0$ הוא פחות מ-5%."</li>
+          <li>אם $0$ <b>לא</b> בתוך רווח הסמך <bdi dir="ltr">⇔</bdi> $\text{p-value} < 0.05$. הם תמיד יסכימו ביניהם.</li>
+        </ul>
+      </div>
+
+      <div class="qa">
+        <div class="question">שאלה לכיתה: אם היינו מקבלים $b_1 = -0.05$ עם $p = 0.001$ — זה מודל טוב?</div>
+        <button class="toggle-btn">גלה תשובה</button>
+        <div class="answer">
+          <p><b>לא בהכרח — תלוי במה שואלים.</b></p>
+          <ul>
+            <li><b>מבחינה סטטיסטית:</b> המודל <b>מובהק</b>. $p = 0.001$ אומר שהסיכוי שמקדם בגודל הזה התקבל במקריות (כשבאמת $b_1 = 0$) הוא 0.1% בלבד. כלומר: יש <b>קשר אמיתי</b> בין $X$ ל-$Y$, לא רעש מקרי.</li>
+            <li><b>מבחינה מעשית:</b> האפקט <b>זניח</b>. $b_1 = -0.05$ אומר שכל שנת ניסיון נוספת מורידה את חומרת הפציעה ב-$0.05$ בלבד. בקנה מידה $0$–$100$ — זה כמעט שום דבר. אחרי 20 שנות ניסיון נוספות, החומרה תרד ב-$1$ נקודה בודדת.</li>
+            <li><b>המסקנה:</b> p-value מודד את <b>עצם קיום הקשר</b>, לא את <b>גודלו</b>. עם דאטה גדול מספיק, גם אפקטים זעירים מאוד יראו מובהקים. מודל "טוב" צריך גם מובהקות סטטיסטית וגם אפקט בעל משמעות מעשית — שני הדברים, לא אחד.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תא 7</span> ⭐ (<code>sm.OLS(...).fit()</code> + summary). אחר כך <span class="cell-ref">תא 8</span> (scatter + regression line).
+        </span>
+      </div>
+
+      <div class="qa">
+        <div class="question">שאלה לכיתה (אחרי הגרף): האם הקו עובר דרך כל הנקודות? למה לא?</div>
+        <button class="toggle-btn">גלה תשובה</button>
+        <div class="answer">יש שגיאה ($\epsilon$). הקו האופטימלי לא יכול לעבור דרך כולן. זה מוביל אותנו ישירות להנחות המודל בפרק 8.</div>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 4 — Equation & manual derivation (cells 12–15 · 0:14–0:19)    -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-4">
+      <div class="section-banner">
+        <h2>פרק 4 — משוואה ופיתוח ידני</h2>
+      </div>
+
+      <p>המטרה: לחבר את <code>statsmodels</code> לנוסחה האנליטית — <b>אין קסם</b>.</p>
+
+      <div class="formula-box">
+        $$\hat{Y_i} = \hat{b_0} + \hat{b_1} x_i$$
+      </div>
+
+      <p>ה-hat (כובע) מסמן <b>חיזוי</b>, לא ערך אמיתי. ההבדל: $b_0$ = פרמטר אמיתי בעולם, $\hat{b_0}$ = ההערכה שלנו ממדגם.</p>
+
+      <div class="callout">
+        <h3>נוסחאות ה-OLS</h3>
+        <div class="formula-box" style="margin:8px 0;">
+          $$\hat{b_1} = \frac{\sum(x_i - \bar{x})(y_i - \bar{y})}{\sum(x_i - \bar{x})^2}, \qquad \hat{b_0} = \bar{y} - \hat{b_1}\bar{x}$$
+        </div>
+        <p>כשהסטודנט מריץ ידנית בתא 14 — התוצאות <b>זהות לחלוטין</b> ל-summary בתא 9. זה הרגע ש-statsmodels מפסיק להיות "קוסם".</p>
+      </div>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תאים 9–10</span> (משוואה + חישוב ידני של $\hat{b}_0, \hat{b}_1$).
+        </span>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 5 — R² visualization (cells 16–17 · 0:19–0:26)                -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-5">
+      <div class="section-banner">
+        <h2>פרק 5 — $R^2$ ויזואלית</h2>
+      </div>
+
+      <p>ראינו ש-$R^2 = 0.718$. אבל מה זה אומר <b>בפועל</b>? המטרה כאן: $R^2$ כיחס בין שונויות — לא רק "מספר".</p>
+
+      <div class="callout">
+        <h3>שני גרפים זה לצד זה</h3>
+        <ul>
+          <li><b>שמאל (SST):</b> הקו האופקי = ממוצע $Y$. הקווים הסגולים = מרחקים מהממוצע. זה <b>הסך — total variation</b>.</li>
+          <li><b>ימין (SSR):</b> אותן נקודות, אבל הקו = קו רגרסיה. הקווים הסגולים <b>הרבה יותר קצרים</b>. זה מה <b>שלא הצלחנו להסביר — residual</b>.</li>
+        </ul>
+      </div>
+
+      <div class="formula-box">
+        $$R^2 = 1 - \frac{SSR}{SST}$$
+      </div>
+
+      <p>אם הקו מוסיף אינפורמציה <bdi dir="ltr">→</bdi> $SSR$ קטן מ-$SST$ <bdi dir="ltr">→</bdi> $R^2$ קרוב ל-1.</p>
+
+      <div class="qa">
+        <div class="question">שאלה לכיתה: מה היה קורה אם $b_1 = 0$?</div>
+        <button class="toggle-btn">גלה תשובה</button>
+        <div class="answer">הקו = הממוצע. $SSR = SST$. $R^2 = 0$. כלומר: המודל לא מוסיף שום מידע מעבר לממוצע.</div>
+      </div>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תא 12</span> ⭐ (ויזואליזציית SST vs. SSR — תא ויזואלי קריטי).
+        </span>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 6 — Prediction & extrapolation (cells 18–24 · 0:26–0:32)      -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-6">
+      <div class="section-banner">
+        <h2>פרק 6 — חיזוי ואקסטרפולציה</h2>
+      </div>
+
+      <p>המודל אומן על נתונים בטווח 2–12 שנים. עכשיו ננסה לחזות פנימה ומחוץ לטווח, ונראה מה קורה.</p>
+
+      <div class="formula-box">
+        $\hat{Severity} = 99.95 - 3.05 \cdot Experience$
+      </div>
+
+      <table style="width:100%; border-collapse:collapse; margin:16px 0;">
+        <thead style="background:var(--bg-banner-alt);">
+          <tr>
+            <th style="padding:10px; text-align:right; border-bottom:2px solid var(--border-banner);">Experience</th>
+            <th style="padding:10px; text-align:right; border-bottom:2px solid var(--border-banner);">חיזוי</th>
+            <th style="padding:10px; text-align:right; border-bottom:2px solid var(--border-banner);">סטטוס</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="padding:10px;">10 שנים</td>
+            <td style="padding:10px;">~69</td>
+            <td style="padding:10px; color:#2f855a;">✅ בתוך הטווח (אינטרפולציה) — סביר</td>
+          </tr>
+          <tr style="background:var(--bg-soft);">
+            <td style="padding:10px;">30 שנים</td>
+            <td style="padding:10px;">~8.5</td>
+            <td style="padding:10px; color:#c05621;">⚠️ מחוץ לטווח (אקסטרפולציה) — ספקולטיבי</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="qa">
+        <div class="question">שאלה לכיתה: האם 8.5 הגיוני? נדרש ערך 0–100.</div>
+        <button class="toggle-btn">גלה תשובה</button>
+        <div class="answer">המספר נראה הגיוני אבל הוא ספקולטיבי — המודל לא ראה את האזור 12–30 שנה. אין ערובה שהקשר הליניארי ממשיך. אם נמשיך עוד יותר (50 שנים?) נקבל ערך שלילי שאינו אפשרי כלל.</div>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>טיפ חשוב — אינטרפולציה vs. אקסטרפולציה</h3>
+        <ul>
+          <li><b>אינטרפולציה:</b> $x$ בתוך טווח האימון (כאן: 2–12) — בד"כ סביר.</li>
+          <li><b>אקסטרפולציה:</b> $x$ מחוץ לטווח — <b>מסוכן</b>. אין הוכחה שהקשר הליניארי ממשיך.</li>
+        </ul>
+      </div>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תאים 13–15</span> (חיזוי 10 שנים <bdi dir="ltr">→</bdi> 30 שנים <bdi dir="ltr">→</bdi> דיון אקסטרפולציה).
+        </span>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 7 — Model quality context (cells 25–26 · 0:32–0:35)           -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-7">
+      <div class="section-banner">
+        <h2>פרק 7 — איכות המודל</h2>
+      </div>
+
+      <p>$R^2 = 0.72$. <b>זה טוב או רע?</b></p>
+
+      <div class="callout">
+        <h3>תלוי בתחום</h3>
+        <ul>
+          <li><b>מכניקה / פיזיקה:</b> 0.72 נחשב <b>נמוך</b>. מודלים שם מגיעים ל-0.99+.</li>
+          <li><b>רפואה / מדעי החברה:</b> 0.72 <b>מעולה</b>. בני אדם רועשים יותר מקפיצים ומסות.</li>
+        </ul>
+        <p style="margin:8px 0 0 0;"><b>ההקשר חשוב מהמספר.</b></p>
+      </div></section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 8 — 3 model assumptions (cells 27–40 · 0:35–0:43)             -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-8">
+      <div class="section-banner">
+        <h2>פרק 8 — 3 הנחות המודל</h2>
+      </div>
+
+      <p>OLS אופטימלי <b>רק אם</b> 3 הנחות מתקיימות. אם הן לא — לא אומר שהמודל "לא עובד", אבל הסקת המסקנות (p-values, רווחי סמך) <b>לא מהימנה</b>.</p>
+
+      <div class="callout">
+        <h3>3 ההנחות</h3>
+        <ol>
+          <li><b>ליניאריות</b> — הקשר באמת לינארי (לא קשת/U).</li>
+          <li><b>שונות קבועה</b> (Homoscedasticity) — השגיאה לא גדלה/קטנה לאורך $X$.</li>
+          <li><b>נורמליות</b> — היסטוגרמת השגיאות נראית כמו פעמון.</li>
+        </ol>
+      </div>
+
+      <h3 style="margin-top:24px;">1. Linearity — בדיקה ויזואלית</h3>
+      <p>נקודות סביב הקו? <code>residuals</code> אקראיים סביב 0? אם יש מגמה (קשת/U) — <b>לא</b> ליניארי. במקרה שלנו: אקראי, OK.</p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תאים 17–18</span> (Linearity: scatter + residuals plot).
+        </span>
+      </div>
+
+      <h3 style="margin-top:24px;">2. Homoscedasticity — שונות קבועה</h3>
+      <p>השגיאות גדלות/קטנות לאורך $X$? אם כן — <b>heteroscedasticity</b> <bdi dir="ltr">→</bdi> תקלה. צורת "משפך" קלאסית. במקרה שלנו: אקראי, OK.</p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תאים 19–20</span> (Homoscedasticity: residuals + vlines).
+        </span>
+      </div>
+
+      <h3 style="margin-top:24px;">3. Normality — שגיאות נורמליות</h3>
+      <p>היסטוגרמת השגיאות צריכה להיראות כמו <b>פעמון</b>. במקרה שלנו לא מושלם — יש זנבות. אבל קרוב מספיק.</p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תאים 21–22</span> (Normality: histogram of residuals).
+        </span>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>טיזר לשיעור 2</h3>
+        <p>בשיעור הבא נראה מה עושים כש-<b>הנחת הליניאריות</b> לא מתקיימת — נכיר טרנספורמציות.</p>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- SUMMARY                                                             -->
+    <!-- ================================================================== -->
+    <section class="block" id="summary">
+      <div class="section-banner">
+        <h2>סיכום + הצצה לשיעור 2</h2>
+      </div>
+
+      <div class="callout">
+        <h3>5 נקודות לזכור</h3>
+        <ol>
+          <li>רגרסיה לינארית = OLS = הקו האופטימלי.</li>
+          <li>ב-statsmodels: <code>sm.OLS(y, X).fit()</code>; קוראים את <code>summary()</code>.</li>
+          <li>$R^2$ = איכות התאמה — תלוי תחום.</li>
+          <li><b>אקסטרפולציה = זהירות</b> מחוץ לטווח האימון.</li>
+          <li>3 הנחות שצריכות להתקיים: ליניאריות · שונות קבועה · נורמליות.</li>
+        </ol>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>בשיעור הבא — Transformations</h3>
+        <p>מה אם הקשר <b>לא</b> לינארי? נכיר טרנספורמציות (log, sqrt, polynomial features) ונראה איך לזהות מתי כל אחת מתאימה.</p>
+        <p style="margin-top:8px;"><b>HW 1</b> יינתן בסוף שיעור 2.</p>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="lesson-footer">
+    Regression Course — Lesson 01 · TA: Raz Elbaz · עודכן: 2026-04-29
+  </footer>
+
+  <script src="shared/interactivity.js"></script>
+</body>
+</html>

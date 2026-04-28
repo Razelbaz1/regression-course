@@ -1,0 +1,36 @@
+/* ============================================================
+   Palette tokens — מקור-אמת יחיד לצבעים בכל מצגות הקורס
+   אסור לשכפל ערכים בקבצי lesson_NN.html — להשתמש בטוקנים בלבד.
+   ============================================================ */
+
+:root {
+  /* --- Brand blues (matches notebook banners) --- */
+  --bg-banner:        #e0f4ff;
+  --bg-banner-alt:    #d9effc;
+  --border-banner:    #0077b6;
+  --border-light:     #86c4e8;
+  --text-title:       #004c70;
+  --text-body:        #0a5773;
+  --divider:          #cbeafb;
+
+  /* --- Accent (callouts, warnings, key takeaways) --- */
+  --accent:           #d4a300;
+  --accent-bg:        #fff8e0;
+  --accent-text:      #7a5800;
+
+  /* --- Code-switch markers (Jupyter handoff) --- */
+  --code-switch-bg:     #fff5d6;
+  --code-switch-border: #ffa000;
+  --code-switch-text:   #6b4500;
+
+  /* --- Neutrals --- */
+  --bg-page:          #ffffff;
+  --bg-soft:          #f7fafc;
+  --text-default:     #222222;
+  --text-muted:       #666666;
+  --border-soft:      #e2e8f0;
+
+  /* --- States --- */
+  --revealed-bg:      #f0fff4;
+  --revealed-border:  #38a169;
+}
