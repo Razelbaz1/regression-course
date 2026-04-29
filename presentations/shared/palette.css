@@ -33,4 +33,14 @@
   /* --- States --- */
   --revealed-bg:      #f0fff4;
   --revealed-border:  #38a169;
+
+  /* --- Block-specific gradient pairs (landing page strip + block headers) --- */
+  --block-linear-1:   #5598c1;
+  --block-linear-2:   #3d7ea3;
+  --block-logistic-1: #88a8c9;
+  --block-logistic-2: #6e93b6;
+  --block-poisson-1:  #d4b572;
+  --block-poisson-2:  #b89856;
+  --block-nb-1:       #b8945a;
+  --block-nb-2:       #9a7a44;
 }

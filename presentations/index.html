@@ -1,0 +1,1060 @@
+<!doctype html>
+<!--
+  Regression Course — Landing Page (index)
+  Aligned with: semester_plan.md (12 lessons, 4 blocks).
+  Cards auto-rendered from LESSONS array in <script> below.
+  Tokens & shared components: shared/palette.css + components.css + styles.css
+-->
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=1920, initial-scale=1">
+  <title>Regression Course — Safety Management for Engineers</title>
+
+  <link rel="stylesheet" href="shared/palette.css">
+  <link rel="stylesheet" href="shared/components.css">
+  <link rel="stylesheet" href="shared/styles.css">
+
+  <style>
+    /* ============================================================
+       Landing-specific styles — relies on shared/palette.css tokens
+       ============================================================ */
+
+    /* Override shared main width: leave breathing room for decorations */
+    main {
+      max-width: 1400px;
+      padding: 32px 40px 80px 40px;
+      position: relative;
+      z-index: 10;
+    }
+
+    /* === Animated background mesh === */
+    .bg-layer {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 10% 0%,   rgba(224, 244, 255, 0.55) 0%, transparent 60%),
+        radial-gradient(ellipse 70% 50% at 90% 100%, rgba(255, 248, 224, 0.40) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 50% 50%,  rgba(217, 239, 252, 0.30) 0%, transparent 70%),
+        var(--bg-page);
+      animation: bg-drift 28s ease-in-out infinite alternate;
+    }
+    @keyframes bg-drift {
+      0%   { transform: translate(0, 0)    scale(1); }
+      100% { transform: translate(2%, -1%) scale(1.04); }
+    }
+
+    /* === Floating data points === */
+    .floating-dot {
+      position: fixed;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--border-banner);
+      opacity: 0.18;
+      pointer-events: none;
+      z-index: 1;
+      animation: float 22s ease-in-out infinite;
+    }
+    .floating-dot.large { width: 10px; height: 10px; opacity: 0.12; }
+    @keyframes float {
+      0%   { transform: translate(0, 0); }
+      25%  { transform: translate(20px, -25px); }
+      50%  { transform: translate(-15px, 15px); }
+      75%  { transform: translate(25px, 10px); }
+      100% { transform: translate(0, 0); }
+    }
+
+    /* === Decorative distributions (Normal · Sigmoid · Poisson PMF · mini scatter) === */
+    .bg-deco {
+      position: fixed;
+      pointer-events: none;
+      z-index: 1;
+      opacity: 0.22;
+      animation: deco-drift 28s ease-in-out infinite;
+    }
+    .bg-deco svg { width: 100%; height: 100%; display: block; }
+    .bg-deco.warm   { opacity: 0.20; }
+    .bg-deco.faint  { opacity: 0.16; }
+    .bg-deco.subtle { opacity: 0.13; }
+    @keyframes deco-drift {
+      0%   { transform: translate(0, 0)        rotate(0deg); }
+      33%  { transform: translate(22px, -18px) rotate(2deg); }
+      66%  { transform: translate(-15px, 12px) rotate(-1.5deg); }
+      100% { transform: translate(0, 0)        rotate(0deg); }
+    }
+
+    /* === Decorative rings === */
+    .bg-ring {
+      position: fixed;
+      border: 2.5px solid var(--border-banner);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 1;
+      opacity: 0.18;
+      animation: ring-drift 32s ease-in-out infinite;
+    }
+    .bg-ring.gold  { border-color: var(--accent); opacity: 0.18; }
+    .bg-ring.faint { opacity: 0.13; border-width: 1.8px; }
+    @keyframes ring-drift {
+      0%   { transform: translate(0, 0)        scale(1); }
+      50%  { transform: translate(-25px, 20px) scale(1.06); }
+      100% { transform: translate(0, 0)        scale(1); }
+    }
+
+    /* === Hero === */
+    .hero {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr;
+      gap: 36px;
+      background: var(--bg-banner);
+      border: 2px solid var(--border-banner);
+      border-radius: 16px;
+      padding: 36px 40px;
+      margin-bottom: 48px;
+      animation: hero-fade-in 0.8s ease;
+      box-shadow: 0 4px 16px rgba(0, 77, 112, 0.06);
+    }
+    @keyframes hero-fade-in {
+      from { opacity: 0; transform: translateY(-12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .hero h1 {
+      font-size: 48px;
+      font-weight: 700;
+      color: var(--text-title);
+      margin: 0 0 12px 0;
+      line-height: 1.1;
+    }
+    .hero .subtitle {
+      font-size: 22px;
+      color: var(--text-body);
+      margin-bottom: 18px;
+    }
+    .hero .welcome {
+      color: var(--text-body);
+      font-size: 17px;
+      line-height: 1.75;
+      margin: 18px 0 0 0;
+      max-width: 600px;
+    }
+    .hero .welcome b { color: var(--text-title); }
+    .hero .welcome .signature {
+      display: inline-block;
+      color: var(--text-title);
+      font-weight: 700;
+      font-size: 19px;
+      margin-top: 2px;
+    }
+
+    /* === Hero scatter === */
+    .scatter-wrap {
+      background: white;
+      border: 1px solid var(--border-light);
+      border-radius: 12px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+    .scatter-wrap svg { width: 100%; height: auto; display: block; }
+    .resample-btn {
+      padding: 8px 20px;
+      background: var(--border-banner);
+      color: white;
+      border: none;
+      border-radius: 999px;
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+    }
+    .resample-btn:hover {
+      background: var(--text-title);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 10px rgba(0, 77, 112, 0.25);
+    }
+    .resample-btn:active { transform: translateY(0); }
+
+    /* === Progression strip === */
+    .strip-section { margin: 24px 0; }
+    .strip {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+    .strip-chip {
+      flex: 1;
+      padding: 14px 0;
+      text-align: center;
+      font-weight: 700;
+      font-size: 18px;
+      border-radius: 8px;
+      cursor: pointer;
+      position: relative;
+      transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.22s ease;
+    }
+    .strip-chip:hover {
+      transform: translateY(-4px) scale(1.06);
+      box-shadow: 0 8px 18px rgba(0, 77, 112, 0.28);
+      z-index: 5;
+    }
+    .chip-linear   { background: linear-gradient(160deg, var(--block-linear-1)   0%, var(--block-linear-2)   100%); color: white; }
+    .chip-logistic { background: linear-gradient(160deg, var(--block-logistic-1) 0%, var(--block-logistic-2) 100%); color: white; }
+    .chip-poisson  { background: linear-gradient(160deg, var(--block-poisson-1)  0%, var(--block-poisson-2)  100%); color: white; }
+    .chip-nb       { background: linear-gradient(160deg, var(--block-nb-1)       0%, var(--block-nb-2)       100%); color: white; }
+    .strip-chip[data-name]:hover::before {
+      content: attr(data-name);
+      position: absolute;
+      top: -42px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--text-title);
+      color: white;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      white-space: nowrap;
+      z-index: 10;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    }
+
+    /* Strip legend */
+    .legend {
+      display: flex;
+      gap: 18px;
+      margin-top: 12px;
+      font-size: 13px;
+      color: var(--text-body);
+    }
+    .legend span { display: inline-flex; align-items: center; gap: 6px; }
+    .legend i {
+      width: 14px; height: 14px;
+      border-radius: 4px;
+      display: inline-block;
+    }
+    .legend i.linear   { background: linear-gradient(160deg, var(--block-linear-1),   var(--block-linear-2)); }
+    .legend i.logistic { background: linear-gradient(160deg, var(--block-logistic-1), var(--block-logistic-2)); }
+    .legend i.poisson  { background: linear-gradient(160deg, var(--block-poisson-1),  var(--block-poisson-2)); }
+    .legend i.nb       { background: linear-gradient(160deg, var(--block-nb-1),       var(--block-nb-2)); }
+
+    /* === View toggle (4 בלוקים / רשת אחת) === */
+    .view-toggle {
+      display: inline-flex;
+      background: var(--bg-soft);
+      border: 1.5px solid var(--border-soft);
+      border-radius: 999px;
+      padding: 4px;
+      gap: 2px;
+      margin: 14px 0 22px 0;
+      box-shadow: inset 0 1px 2px rgba(0, 77, 112, 0.04);
+    }
+    .view-toggle button {
+      padding: 8px 22px;
+      background: transparent;
+      border: none;
+      border-radius: 999px;
+      color: var(--text-body);
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.35s ease, color 0.35s ease, transform 0.18s ease;
+    }
+    .view-toggle button:hover:not(.active) {
+      background: var(--bg-banner);
+      color: var(--text-title);
+      transform: translateY(-1px);
+    }
+    .view-toggle button.active {
+      background: var(--border-banner);
+      color: white;
+      cursor: default;
+      box-shadow: 0 2px 8px rgba(0, 77, 112, 0.25);
+    }
+
+    /* === Cards container with view switching === */
+    .cards-container { position: relative; min-height: 200px; }
+    .view {
+      display: none;
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .view.active { display: block; }
+
+    /* Block headers (used in blocks view) */
+    .block-header {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-title);
+      margin: 28px 0 14px 0;
+      padding-right: 14px;
+      border-right: 4px solid var(--border-banner);
+      line-height: 1.3;
+    }
+    .view-blocks > .block-header:first-child { margin-top: 4px; }
+    .block-header.linear   { border-right-color: var(--block-linear-1); }
+    .block-header.logistic { border-right-color: var(--block-logistic-1); }
+    .block-header.poisson  { border-right-color: var(--block-poisson-1); }
+    .block-header.nb       { border-right-color: var(--block-nb-1); }
+    .block-header .block-en {
+      color: var(--text-muted);
+      font-weight: 500;
+      font-size: 16px;
+      margin-right: 6px;
+    }
+
+    /* Stagger entry animation when a view becomes active */
+    .view.active .cards-grid > * {
+      animation: card-enter 0.45s cubic-bezier(0.34, 1.2, 0.64, 1) backwards;
+    }
+    .view.active .cards-grid > *:nth-child(1)  { animation-delay: 0.02s; }
+    .view.active .cards-grid > *:nth-child(2)  { animation-delay: 0.06s; }
+    .view.active .cards-grid > *:nth-child(3)  { animation-delay: 0.10s; }
+    .view.active .cards-grid > *:nth-child(4)  { animation-delay: 0.14s; }
+    .view.active .cards-grid > *:nth-child(5)  { animation-delay: 0.18s; }
+    .view.active .cards-grid > *:nth-child(6)  { animation-delay: 0.22s; }
+    .view.active .cards-grid > *:nth-child(7)  { animation-delay: 0.26s; }
+    .view.active .cards-grid > *:nth-child(8)  { animation-delay: 0.30s; }
+    .view.active .cards-grid > *:nth-child(9)  { animation-delay: 0.34s; }
+    .view.active .cards-grid > *:nth-child(10) { animation-delay: 0.38s; }
+    .view.active .cards-grid > *:nth-child(11) { animation-delay: 0.42s; }
+    .view.active .cards-grid > *:nth-child(12) { animation-delay: 0.46s; }
+    @keyframes card-enter {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* === Cards === */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+      gap: 18px;
+      margin-top: 16px;
+    }
+    .card {
+      background: white;
+      border: 2px solid var(--border-light);
+      border-radius: 14px;
+      padding: 22px 24px;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.28s cubic-bezier(0.34, 1.2, 0.64, 1),
+                  box-shadow 0.28s ease,
+                  border-color 0.28s ease;
+      cursor: pointer;
+    }
+    .card::before {
+      content: "";
+      position: absolute;
+      top: 0; bottom: 0;
+      right: -100%;
+      width: 60%;
+      background: linear-gradient(to left,
+        transparent 0%,
+        rgba(0, 119, 182, 0.06) 50%,
+        transparent 100%);
+      transition: right 0.7s ease;
+      pointer-events: none;
+    }
+    .card:hover::before { right: 110%; }
+    .card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 12px 30px rgba(0, 77, 112, 0.18);
+      border-color: var(--border-banner);
+    }
+    .card .lesson-num {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-muted);
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card .lesson-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text-title);
+      margin: 8px 0 10px 0;
+      line-height: 1.25;
+    }
+    .card .lesson-goal {
+      font-size: 15px;
+      color: var(--text-body);
+      line-height: 1.55;
+      min-height: 70px;
+    }
+    .card .card-footer {
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border-soft);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 14px;
+      min-height: 36px;
+    }
+    .card .open-arrow {
+      color: var(--border-banner);
+      font-weight: 600;
+      transform: translateX(8px);
+      opacity: 0;
+      transition: transform 0.3s ease, opacity 0.3s ease;
+    }
+    .card:hover .open-arrow {
+      transform: translateX(0);
+      opacity: 1;
+    }
+
+    /* "Ready" status — pulsing green dot */
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--revealed-border);
+      display: inline-block;
+      animation: pulse 2s ease-in-out infinite;
+      box-shadow: 0 0 0 0 rgba(56, 161, 105, 0.5);
+    }
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(56, 161, 105, 0.5); }
+      50%      { box-shadow: 0 0 0 6px rgba(56, 161, 105, 0); }
+    }
+
+    /* Card link patterns: stretched main link + secondary Jupyter link */
+    .card-main-link {
+      text-decoration: none;
+      color: inherit;
+    }
+    .card-main-link::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      border-radius: 14px;
+    }
+    .card-main-link:focus-visible::before {
+      outline: 2px solid var(--border-banner);
+      outline-offset: 2px;
+    }
+    .card-secondary-link {
+      position: relative;
+      z-index: 2;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      text-decoration: none;
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 600;
+      padding: 4px 12px;
+      border-radius: 999px;
+      background: var(--bg-soft);
+      border: 1px solid var(--border-soft);
+      transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+    }
+    .card-secondary-link:hover {
+      color: var(--border-banner);
+      background: var(--bg-banner);
+      border-color: var(--border-light);
+      transform: translateY(-1px);
+    }
+    .card-secondary-link svg {
+      flex-shrink: 0;
+      vertical-align: -2px;
+    }
+
+    /* === Coming-soon Blueprint card === */
+    .card--blueprint {
+      border: 2px dashed var(--border-light);
+      background-color: white;
+      background-image:
+        repeating-linear-gradient(0deg,
+          transparent 0, transparent 22px,
+          rgba(134, 196, 232, 0.10) 22px, rgba(134, 196, 232, 0.10) 23px),
+        repeating-linear-gradient(90deg,
+          transparent 0, transparent 22px,
+          rgba(134, 196, 232, 0.10) 22px, rgba(134, 196, 232, 0.10) 23px);
+      cursor: default;
+      animation: blueprint-shift 12s linear infinite;
+    }
+    @keyframes blueprint-shift {
+      from { background-position: 0 0, 0 0; }
+      to   { background-position: 0 23px, 23px 0; }
+    }
+    .card--blueprint:hover {
+      transform: none;
+      box-shadow: none;
+      border-color: var(--border-light);
+    }
+    .card--blueprint::before { display: none; }
+    .card--blueprint .lesson-title { opacity: 0.55; }
+    .card--blueprint .lesson-goal  { opacity: 0.45; }
+
+    .soon-badge {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      background: var(--accent-bg);
+      color: var(--accent-text);
+      border: 1px dashed var(--accent);
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      animation: soon-pulse 2.5s ease-in-out infinite;
+    }
+    @keyframes soon-pulse {
+      0%, 100% { opacity: 0.85; }
+      50%      { opacity: 1; }
+    }
+
+    /* === Loading overlay (smooth transition when picking a lesson/notebook) === */
+    .loading-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 76, 112, 0.28);
+      backdrop-filter: blur(10px) saturate(120%);
+      -webkit-backdrop-filter: blur(10px) saturate(120%);
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.35s ease, visibility 0.35s ease;
+    }
+    .loading-overlay.visible {
+      opacity: 1;
+      visibility: visible;
+    }
+    .loading-card {
+      background: white;
+      border: 2px solid var(--border-banner);
+      border-radius: 18px;
+      padding: 36px 56px 30px 56px;
+      box-shadow: 0 20px 60px rgba(0, 77, 112, 0.35);
+      text-align: center;
+      transform: translateY(36px) scale(0.94);
+      opacity: 0;
+      transition: transform 0.55s cubic-bezier(0.34, 1.2, 0.64, 1), opacity 0.4s ease;
+      min-width: 340px;
+      max-width: 400px;
+    }
+    .loading-overlay.visible .loading-card {
+      transform: translateY(0) scale(1);
+      opacity: 1;
+    }
+    .loading-scatter {
+      width: 220px;
+      height: 130px;
+      margin: 0 auto;
+      display: block;
+    }
+    .loading-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text-title);
+      margin-top: 16px;
+      margin-bottom: 6px;
+    }
+    .loading-subtitle {
+      font-size: 14px;
+      color: var(--text-body);
+      font-weight: 400;
+      min-height: 20px;
+    }
+    .loading-progress {
+      width: 100%;
+      height: 3px;
+      background: var(--bg-soft);
+      border-radius: 2px;
+      margin-top: 22px;
+      overflow: hidden;
+    }
+    .loading-progress-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--border-banner), var(--text-title));
+      border-radius: 2px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ========== Background layers ========== -->
+  <div class="bg-layer"></div>
+
+  <div class="floating-dot"        style="top: 12%; left: 8%;  animation-delay: 0s;"></div>
+  <div class="floating-dot large"  style="top: 22%; left: 92%; animation-delay: 3s;"></div>
+  <div class="floating-dot"        style="top: 60%; left: 5%;  animation-delay: 6s;"></div>
+  <div class="floating-dot large"  style="top: 78%; left: 88%; animation-delay: 9s;"></div>
+  <div class="floating-dot"        style="top: 40%; left: 15%; animation-delay: 12s;"></div>
+  <div class="floating-dot"        style="top: 88%; left: 50%; animation-delay: 15s;"></div>
+  <div class="floating-dot large"  style="top: 5%;  left: 60%; animation-delay: 18s;"></div>
+  <div class="floating-dot"        style="top: 35%; left: 75%; animation-delay: 4s;"></div>
+  <div class="floating-dot"        style="top: 70%; left: 30%; animation-delay: 8s;"></div>
+
+  <div class="bg-ring"       style="top: 8%;  left: 4%;  width: 220px; height: 220px; animation-delay: 0s;"></div>
+  <div class="bg-ring faint" style="top: 55%; left: 88%; width: 140px; height: 140px; animation-delay: 5s;"></div>
+  <div class="bg-ring gold"  style="top: 82%; left: 12%; width: 90px;  height: 90px;  animation-delay: 10s;"></div>
+  <div class="bg-ring faint" style="top: 30%; left: 50%; width: 60px;  height: 60px;  animation-delay: 14s;"></div>
+
+  <!-- Decorative distributions: Normal · Sigmoid · Poisson PMF · secondary bell · mini scatter -->
+  <div class="bg-deco" style="top: 6%; left: 70%; width: 280px; height: 130px; animation-delay: 0s;">
+    <svg viewBox="0 0 200 100" preserveAspectRatio="none">
+      <path d="M 0 92 C 30 92, 55 92, 70 70 C 82 50, 90 8, 100 8 C 110 8, 118 50, 130 70 C 145 92, 170 92, 200 92 L 200 100 L 0 100 Z"
+            fill="#0077b6" stroke="#004c70" stroke-width="2.5"/>
+    </svg>
+  </div>
+  <div class="bg-deco faint" style="top: 38%; left: 2%; width: 220px; height: 120px; animation-delay: 7s;">
+    <svg viewBox="0 0 200 100" preserveAspectRatio="none">
+      <path d="M 0 90 C 50 90, 70 90, 85 80 C 95 72, 100 50, 100 50 C 100 50, 105 28, 115 20 C 130 10, 150 10, 200 10"
+            fill="none" stroke="#0077b6" stroke-width="3.5" stroke-linecap="round"/>
+      <line x1="0" y1="50" x2="200" y2="50" stroke="#86c4e8" stroke-width="1.5" stroke-dasharray="4 4"/>
+    </svg>
+  </div>
+  <div class="bg-deco warm" style="top: 70%; left: 65%; width: 260px; height: 130px; animation-delay: 12s;">
+    <svg viewBox="0 0 200 100" preserveAspectRatio="none">
+      <g fill="#d4a300" stroke="#7a5800" stroke-width="1">
+        <rect x="10"  y="60" width="22" height="32"/>
+        <rect x="40"  y="22" width="22" height="70"/>
+        <rect x="70"  y="22" width="22" height="70"/>
+        <rect x="100" y="46" width="22" height="46"/>
+        <rect x="130" y="68" width="22" height="24"/>
+        <rect x="160" y="82" width="22" height="10"/>
+      </g>
+      <line x1="5" y1="92" x2="195" y2="92" stroke="#7a5800" stroke-width="2"/>
+    </svg>
+  </div>
+  <div class="bg-deco subtle" style="top: 60%; left: 38%; width: 180px; height: 90px; animation-delay: 18s;">
+    <svg viewBox="0 0 200 100" preserveAspectRatio="none">
+      <path d="M 0 92 C 30 92, 55 92, 70 70 C 82 50, 90 8, 100 8 C 110 8, 118 50, 130 70 C 145 92, 170 92, 200 92 L 200 100 L 0 100 Z"
+            fill="#0a5773" stroke="#004c70" stroke-width="2"/>
+    </svg>
+  </div>
+  <div class="bg-deco subtle" style="top: 25%; left: 32%; width: 150px; height: 100px; animation-delay: 22s;">
+    <svg viewBox="0 0 150 100" preserveAspectRatio="none">
+      <line x1="10" y1="85" x2="140" y2="20" stroke="#0077b6" stroke-width="3"/>
+      <circle cx="20"  cy="78" r="4" fill="#0077b6"/>
+      <circle cx="40"  cy="68" r="4" fill="#0077b6"/>
+      <circle cx="55"  cy="62" r="4" fill="#0077b6"/>
+      <circle cx="75"  cy="48" r="4" fill="#0077b6"/>
+      <circle cx="95"  cy="42" r="4" fill="#0077b6"/>
+      <circle cx="115" cy="32" r="4" fill="#0077b6"/>
+      <circle cx="130" cy="25" r="4" fill="#0077b6"/>
+    </svg>
+  </div>
+
+  <main>
+
+    <!-- ========== HERO ========== -->
+    <section class="hero">
+      <div>
+        <h1>Regression Course</h1>
+        <div class="subtitle">Safety Management for Engineers · Ariel University</div>
+        <p class="welcome">
+          ברוכים הבאים ל<b>קורס בטיחות למהנדסים</b>.
+          בעמוד הזה ריכזתי את כל חומרי התרגול של הקורס — 12 מצגות אינטראקטיביות שמלוות את
+          המפגשים השבועיים שלנו, מאורגנות לפי 4 בלוקים: רגרסיה לינארית, לוגיסטית, פואסון,
+          ובינומית שלילית. כל שיעור פתוח לצפייה ישירות מהדפדפן ומתעדכן אוטומטית עם פרסום חומר חדש.
+          שיעורים שמסומנים כ"בקרוב" עדיין בהכנה ויפורסמו במהלך הסמסטר.
+          <br><br>
+          אני מאחל לכולכם המון בהצלחה ושיהיה סמסטר פורה ומעניין!
+          <br>
+          <span class="signature">רז</span>
+        </p>
+      </div>
+      <div class="scatter-wrap">
+        <svg id="hero-scatter" viewBox="0 0 320 220" aria-label="Sample scatter and OLS line">
+          <line x1="30" y1="10"  x2="30"  y2="190" stroke="#cbeafb" stroke-width="1.5"/>
+          <line x1="30" y1="190" x2="310" y2="190" stroke="#cbeafb" stroke-width="1.5"/>
+          <text x="14" y="100" font-size="11" fill="#666" transform="rotate(-90 14 100)">Y</text>
+          <text x="170" y="210" font-size="11" fill="#666">X</text>
+          <g id="dots-layer"></g>
+          <line id="reg-line" x1="0" y1="0" x2="0" y2="0" stroke="#0077b6" stroke-width="2.5" opacity="0"/>
+        </svg>
+        <button class="resample-btn" onclick="drawScatter()">דגום מחדש</button>
+      </div>
+    </section>
+
+    <!-- ========== PROGRESSION STRIP ========== -->
+    <div class="strip-section">
+      <div class="section-banner"><h2>רצועת ההתקדמות</h2></div>
+      <div class="strip">
+        <div class="strip-chip chip-linear"   data-name="OLS Foundations">1</div>
+        <div class="strip-chip chip-linear"   data-name="Transformations">2</div>
+        <div class="strip-chip chip-linear"   data-name="Multivariate">3</div>
+        <div class="strip-chip chip-linear"   data-name="Dummy Variables">4</div>
+        <div class="strip-chip chip-linear"   data-name="Polynomial + Selection">5</div>
+        <div class="strip-chip chip-linear"   data-name="Interactions">6</div>
+        <div class="strip-chip chip-logistic" data-name="Logistic Intro">7</div>
+        <div class="strip-chip chip-logistic" data-name="MLE">8</div>
+        <div class="strip-chip chip-logistic" data-name="Confusion Matrix">9</div>
+        <div class="strip-chip chip-poisson"  data-name="Poisson + Offset">10</div>
+        <div class="strip-chip chip-poisson"  data-name="Dispersion">11</div>
+        <div class="strip-chip chip-nb"       data-name="Negative Binomial">12</div>
+      </div>
+      <div class="legend">
+        <span><i class="linear"></i> Linear (1–6)</span>
+        <span><i class="logistic"></i> Logistic (7–9)</span>
+        <span><i class="poisson"></i> Poisson (10–11)</span>
+        <span><i class="nb"></i> NB (12)</span>
+      </div>
+    </div>
+
+    <!-- ========== 12 LESSONS ========== -->
+    <div class="section-banner"><h2>12 השיעורים</h2></div>
+
+    <div class="view-toggle" role="tablist" aria-label="תצוגת כרטיסים">
+      <button class="active" data-view="blocks" type="button">4 בלוקים</button>
+      <button                data-view="flat"   type="button">רשת אחת</button>
+    </div>
+
+    <div class="cards-container">
+      <div class="view view-blocks active"></div>
+      <div class="view view-flat"></div>
+    </div>
+
+  </main>
+
+  <footer class="lesson-footer">
+    Regression Course · TA: Raz Elbaz · עודכן: 2026-04-30
+  </footer>
+
+  <!-- ========== Loading overlay ========== -->
+  <div class="loading-overlay" id="loadingOverlay" aria-hidden="true">
+    <div class="loading-card">
+      <svg class="loading-scatter" id="loading-scatter" viewBox="0 0 220 130" aria-hidden="true">
+        <line x1="15" y1="10"  x2="15"  y2="115" stroke="#cbeafb" stroke-width="1.5"/>
+        <line x1="15" y1="115" x2="210" y2="115" stroke="#cbeafb" stroke-width="1.5"/>
+        <g class="dots"></g>
+        <line class="line" x1="0" y1="0" x2="0" y2="0" stroke="#0077b6" stroke-width="2.5" opacity="0"/>
+      </svg>
+      <div class="loading-title" id="loadingTitle">טוען...</div>
+      <div class="loading-subtitle" id="loadingSubtitle"></div>
+      <div class="loading-progress"><div class="loading-progress-bar"></div></div>
+    </div>
+  </div>
+
+  <script>
+    // === Lessons data — single source of truth ===
+    const NB_BASE = 'https://github.com/Razelbaz1/regression-course/blob/master';
+
+    const LESSONS = [
+      { num: 1,  block: 'linear',   title: 'OLS Foundations & statsmodels',   goal: 'להבין מה OLS פותר ולקרוא summary() בביטחון.',                                  ready: true,  href: 'lesson_01.html', notebook: `${NB_BASE}/lesson1/notebooks/Lesson1_linear_regression_Tirgul.ipynb` },
+      { num: 2,  block: 'linear',   title: 'Transformations',                 goal: 'לזהות מתי הקשר אינו לינארי ולתקן ב-Y-transform.',                              ready: true,  href: 'lesson_02.html', notebook: `${NB_BASE}/lesson2/Lesson2_Linear_regression_Tirgul.ipynb` },
+      { num: 3,  block: 'linear',   title: 'Multivariate Regression',         goal: 'להבין רגרסורים מרובים ו-multicollinearity (VIF, conditioning).',              ready: true,  href: 'lesson_03.html', notebook: `${NB_BASE}/lesson3/lesson_3_lin_reg_tirgul.ipynb` },
+      { num: 4,  block: 'linear',   title: 'Dummy Variables',                 goal: 'לקודד משתנה קטגוריאלי, לפרש baseline, ולהבין למה Factory_num נכשל.',         ready: true,  href: 'lesson_04.html', notebook: `${NB_BASE}/lesson4/lesson_4_dummies_tirgul.ipynb` },
+      { num: 5,  block: 'linear',   title: 'Polynomial + Parameter Selection', goal: 'פולינומיאלי + בחירת מודל (AIC, BIC, stepwise).',                            ready: false, notebook: `${NB_BASE}/lesson5/Polynomial_interaction_tirgul.ipynb` },
+      { num: 6,  block: 'linear',   title: 'Interactions',                    goal: 'לפרש אינטראקציה ולבדוק את מובהקותה.',                                          ready: false, notebook: `${NB_BASE}/lesson6/Polynomial_interaction_stepwise_interaction_tirgul.ipynb` },
+      { num: 7,  block: 'logistic', title: 'Logistic Regression — Intro',     goal: 'למה OLS לא מתאים לבינארי; sigmoid ו-log-odds.',                              ready: false, notebook: `${NB_BASE}/lesson7/Tirgul_logistic.ipynb` },
+      { num: 8,  block: 'logistic', title: 'Maximum Likelihood Estimation',   goal: 'מה זה likelihood ואיך statsmodels מעריך.',                                    ready: false, notebook: null },
+      { num: 9,  block: 'logistic', title: 'Confusion Matrix & Evaluation',   goal: 'להעריך מסווג בינארי ולבחור threshold.',                                       ready: false, notebook: null },
+      { num: 10, block: 'poisson',  title: 'Poisson — Counting & Offset',     goal: 'counting process, log link, ושילוב offset לחשיפה משתנה.',                    ready: false, notebook: null },
+      { num: 11, block: 'poisson',  title: 'Dispersion',                      goal: 'לזהות overdispersion ולגשר ל-NB.',                                            ready: false, notebook: null },
+      { num: 12, block: 'nb',       title: 'Negative Binomial',               goal: 'מתי NB עדיף על פואסון.',                                                      ready: false, notebook: null },
+    ];
+
+    const BLOCK_LABELS = {
+      linear:   { he: 'רגרסיה לינארית',  en: 'Linear',             range: '1–6' },
+      logistic: { he: 'רגרסיה לוגיסטית', en: 'Logistic',           range: '7–9' },
+      poisson:  { he: 'פואסון',          en: 'Poisson',            range: '10–11' },
+      nb:       { he: 'בינומית שלילית',  en: 'Negative Binomial',  range: '12' },
+    };
+    const BLOCK_DISPLAY = { linear: 'Linear', logistic: 'Logistic', poisson: 'Poisson', nb: 'NB' };
+
+    function pad2(n) { return String(n).padStart(2, '0'); }
+
+    const NB_ICON = `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="13" y1="9" x2="18" y2="9"/><line x1="13" y1="14" x2="18" y2="14"/></svg>`;
+
+    function jupyterLink(lesson) {
+      if (!lesson.notebook) return '';
+      return `<a href="${lesson.notebook}" class="card-secondary-link" target="_blank" rel="noopener" aria-label="פתח מחברת Jupyter של שיעור ${lesson.num}">${NB_ICON}<span>Jupyter</span></a>`;
+    }
+
+    function renderCard(lesson) {
+      const lessonNum = `שיעור ${pad2(lesson.num)} · ${BLOCK_DISPLAY[lesson.block]}`;
+      const nbLink = jupyterLink(lesson);
+      if (lesson.ready) {
+        return `
+          <div class="card">
+            <div class="lesson-num">${lessonNum} <span class="status-dot"></span></div>
+            <div class="lesson-title"><a href="${lesson.href || '#'}" class="card-main-link" target="_blank" rel="noopener">${lesson.title}</a></div>
+            <div class="lesson-goal">${lesson.goal}</div>
+            <div class="card-footer">
+              ${nbLink || '<span></span>'}
+              <span class="open-arrow">פתח את המצגת ←</span>
+            </div>
+          </div>`;
+      }
+      // Blueprint (coming soon)
+      return `
+        <div class="card card--blueprint">
+          <span class="soon-badge">בקרוב</span>
+          <div class="lesson-num">${lessonNum}</div>
+          <div class="lesson-title">${lesson.title}</div>
+          <div class="lesson-goal">${lesson.goal}</div>
+          ${nbLink ? `<div class="card-footer">${nbLink}<span></span></div>` : ''}
+        </div>`;
+    }
+
+    function renderBlocksView() {
+      return ['linear', 'logistic', 'poisson', 'nb'].map(block => {
+        const lessons = LESSONS.filter(l => l.block === block);
+        const lab = BLOCK_LABELS[block];
+        return `
+          <h3 class="block-header ${block}">
+            ${lab.he} <span class="block-en">· ${lab.en} (${lab.range})</span>
+          </h3>
+          <div class="cards-grid">${lessons.map(renderCard).join('')}</div>`;
+      }).join('');
+    }
+
+    function renderFlatView() {
+      return `<div class="cards-grid">${LESSONS.map(renderCard).join('')}</div>`;
+    }
+
+    document.querySelector('.view-blocks').innerHTML = renderBlocksView();
+    document.querySelector('.view-flat').innerHTML   = renderFlatView();
+
+    // === View toggle (smooth fade-and-slide between blocks/flat) ===
+    function switchView(target) {
+      const buttons = document.querySelectorAll('.view-toggle button');
+      const activeBtn = document.querySelector('.view-toggle button.active');
+      if (activeBtn.dataset.view === target) return;
+
+      buttons.forEach(b => b.classList.toggle('active', b.dataset.view === target));
+
+      const oldView = document.querySelector('.view.active');
+      const newView = document.querySelector(`.view-${target}`);
+
+      oldView.style.transition = 'opacity 0.28s ease, transform 0.28s ease';
+      oldView.style.opacity = '0';
+      oldView.style.transform = 'translateY(8px)';
+
+      setTimeout(() => {
+        oldView.classList.remove('active');
+        oldView.style.display = 'none';
+        oldView.style.transition = '';
+        oldView.style.opacity = '';
+        oldView.style.transform = '';
+
+        newView.style.display = 'block';
+        newView.classList.add('active');
+      }, 280);
+    }
+
+    document.querySelectorAll('.view-toggle button').forEach(btn => {
+      btn.addEventListener('click', () => switchView(btn.dataset.view));
+    });
+
+    // === Loading overlay — smooth transition when navigating to a lesson/notebook ===
+    let loadingInterval = null;
+
+    function animateLoadingScatter() {
+      const svg = document.getElementById('loading-scatter');
+      if (!svg) return;
+      const dotsLayer = svg.querySelector('.dots');
+      const line      = svg.querySelector('.line');
+      dotsLayer.innerHTML = '';
+      line.setAttribute('opacity', '0');
+      line.style.transition = '';
+
+      const n         = 14;
+      const slope     = -0.6 + Math.random() * 1.2;
+      const intercept = 60 + Math.random() * 18;
+      const noise     = 12;
+
+      const points = [];
+      for (let i = 0; i < n; i++) {
+        const x    = 25 + i * 13 + (Math.random() - 0.5) * 6;
+        const yRaw = intercept + slope * (x - 110) + (Math.random() - 0.5) * 2 * noise;
+        const y    = Math.max(15, Math.min(110, yRaw));
+        points.push({x, y});
+      }
+
+      const meanX = points.reduce((s, p) => s + p.x, 0) / n;
+      const meanY = points.reduce((s, p) => s + p.y, 0) / n;
+      let num = 0, den = 0;
+      for (const p of points) {
+        num += (p.x - meanX) * (p.y - meanY);
+        den += (p.x - meanX) ** 2;
+      }
+      const b1 = num / den;
+      const b0 = meanY - b1 * meanX;
+      const lx1 = 22, lx2 = 205;
+      const ly1 = Math.max(10, Math.min(115, b0 + b1 * lx1));
+      const ly2 = Math.max(10, Math.min(115, b0 + b1 * lx2));
+
+      points.forEach((p, i) => {
+        const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        c.setAttribute('cx', p.x);
+        c.setAttribute('cy', p.y);
+        c.setAttribute('r', 0);
+        c.setAttribute('fill', '#0077b6');
+        c.setAttribute('opacity', '0.7');
+        c.style.transition = 'r 0.3s ease';
+        dotsLayer.appendChild(c);
+        setTimeout(() => c.setAttribute('r', '3.5'), i * 40);
+      });
+
+      setTimeout(() => {
+        line.setAttribute('x1', lx1);
+        line.setAttribute('y1', ly1);
+        line.setAttribute('x2', lx1);
+        line.setAttribute('y2', ly1);
+        line.setAttribute('opacity', '1');
+        line.style.transition = 'all 0.65s cubic-bezier(0.4, 0, 0.2, 1)';
+        requestAnimationFrame(() => {
+          line.setAttribute('x2', lx2);
+          line.setAttribute('y2', ly2);
+        });
+      }, n * 40 + 100);
+    }
+
+    function showLoading(title, subtitle, autoDismiss) {
+      const overlay = document.getElementById('loadingOverlay');
+      document.getElementById('loadingTitle').textContent    = title;
+      document.getElementById('loadingSubtitle').textContent = subtitle || '';
+      overlay.classList.add('visible');
+      overlay.setAttribute('aria-hidden', 'false');
+
+      animateLoadingScatter();
+      if (loadingInterval) clearInterval(loadingInterval);
+      loadingInterval = setInterval(animateLoadingScatter, 1700);
+
+      // Restart progress bar (0% → 100% over 2.5s)
+      const bar = overlay.querySelector('.loading-progress-bar');
+      if (bar) {
+        bar.style.transition = 'none';
+        bar.style.width = '0%';
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            bar.style.transition = 'width 2.5s linear';
+            bar.style.width = '100%';
+          });
+        });
+      }
+
+      if (autoDismiss) {
+        setTimeout(hideLoading, 2500);
+      }
+    }
+
+    function hideLoading() {
+      const overlay = document.getElementById('loadingOverlay');
+      if (overlay) {
+        overlay.classList.remove('visible');
+        overlay.setAttribute('aria-hidden', 'true');
+      }
+      if (loadingInterval) {
+        clearInterval(loadingInterval);
+        loadingInterval = null;
+      }
+    }
+
+    // Hook clicks on lesson links and Jupyter links
+    // Strategy: prevent default, show overlay for 3s in current tab,
+    // THEN open the new tab — so the user actually watches the full animation.
+    document.addEventListener('click', (e) => {
+      const mainLink      = e.target.closest('a.card-main-link');
+      const secondaryLink = e.target.closest('a.card-secondary-link');
+      if (!mainLink && !secondaryLink) return;
+
+      e.preventDefault();
+
+      const link  = mainLink || secondaryLink;
+      const href  = link.href;
+      const card  = link.closest('.card');
+      const title = card?.querySelector('.lesson-title')?.textContent.trim() || '';
+
+      if (mainLink) {
+        showLoading('פותח שיעור', `${title} — נפתח בלשונית חדשה בעוד רגע`, false);
+      } else {
+        showLoading('פותח מחברת ב-Jupyter', `${title} — נפתח בלשונית חדשה בעוד רגע`, false);
+      }
+
+      // After the 2.5s animation completes, open the new tab and dismiss the overlay.
+      // Note: window.open(..., 'noopener') always returns null, so we open without the
+      // flag and clear opener manually — this lets us reliably detect actual popup blocks.
+      setTimeout(() => {
+        const newWin = window.open(href, '_blank');
+        if (newWin) {
+          newWin.opener = null;
+        }
+        hideLoading();
+      }, 2500);
+    });
+
+    // Dismiss overlay when returning via back/forward (bfcache)
+    window.addEventListener('pageshow', hideLoading);
+
+    // === Hero scatter — generate random data + draw OLS line with stagger animation ===
+    function drawScatter() {
+      const dotsLayer = document.getElementById('dots-layer');
+      const regLine   = document.getElementById('reg-line');
+      dotsLayer.innerHTML = '';
+      regLine.setAttribute('opacity', '0');
+
+      const n         = 28;
+      const slope     = -0.9 + Math.random() * 1.8;
+      const intercept = 100;
+      const noise     = 22;
+
+      const points = [];
+      for (let i = 0; i < n; i++) {
+        const x = 45 + Math.random() * 250;
+        const yRaw = intercept + slope * (x - 170) + (Math.random() - 0.5) * 2 * noise;
+        const y = Math.max(20, Math.min(180, yRaw));
+        points.push({x, y});
+      }
+
+      const meanX = points.reduce((s, p) => s + p.x, 0) / n;
+      const meanY = points.reduce((s, p) => s + p.y, 0) / n;
+      let num = 0, den = 0;
+      for (const p of points) {
+        num += (p.x - meanX) * (p.y - meanY);
+        den += (p.x - meanX) ** 2;
+      }
+      const b1 = num / den;
+      const b0 = meanY - b1 * meanX;
+      const x1 = 45, x2 = 295;
+      const y1 = Math.max(15, Math.min(185, b0 + b1 * x1));
+      const y2 = Math.max(15, Math.min(185, b0 + b1 * x2));
+
+      points.forEach((p, i) => {
+        const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        c.setAttribute('cx', p.x);
+        c.setAttribute('cy', p.y);
+        c.setAttribute('r', 0);
+        c.setAttribute('fill', '#0077b6');
+        c.setAttribute('opacity', '0.65');
+        c.style.transition = 'r 0.3s ease';
+        dotsLayer.appendChild(c);
+        setTimeout(() => c.setAttribute('r', '4'), i * 22);
+      });
+
+      setTimeout(() => {
+        regLine.setAttribute('x1', x1);
+        regLine.setAttribute('y1', y1);
+        regLine.setAttribute('x2', x1);
+        regLine.setAttribute('y2', y1);
+        regLine.setAttribute('opacity', '1');
+        regLine.style.transition = 'all 0.7s cubic-bezier(0.4, 0, 0.2, 1)';
+        requestAnimationFrame(() => {
+          regLine.setAttribute('x2', x2);
+          regLine.setAttribute('y2', y2);
+        });
+      }, n * 22 + 120);
+    }
+    drawScatter();
+  </script>
+
+</body>
+</html>
