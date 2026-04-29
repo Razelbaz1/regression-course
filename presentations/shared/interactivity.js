@@ -11,10 +11,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ---------- Common SVG icons ----------
   const ICONS = {
-    arrowUp:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>',
-    list:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>',
-    slides:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><line x1="7" y1="9" x2="17" y2="9"/><line x1="7" y1="13" x2="13" y2="13"/></svg>',
-    cursor:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>',
+    arrowUp:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>',
+    list:       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>',
+    slides:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><line x1="7" y1="9" x2="17" y2="9"/><line x1="7" y1="13" x2="13" y2="13"/></svg>',
+    cursor:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>',
+    chevronL:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>',
+    chevronR:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>',
   };
 
   function makeBtn(cls, label, html) {
@@ -198,7 +200,27 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     updateCounter();
     setActiveTocIdx(currentSlide);
+    prevSideBtn.disabled = currentSlide === 0;
+    nextSideBtn.disabled = currentSlide === sections.length - 1;
   }
+
+  // ---------- Side-nav arrows (visible only in slides mode) ----------
+  // RTL convention (matches lesson-nav header): prev=right, next=left.
+  const prevSideBtn = document.createElement('button');
+  prevSideBtn.className = 'slide-side-nav prev';
+  prevSideBtn.innerHTML = ICONS.chevronR;
+  prevSideBtn.setAttribute('aria-label', 'השקף הקודם');
+  prevSideBtn.title = 'השקף הקודם';
+  prevSideBtn.addEventListener('click', () => slidesGo(currentSlide - 1));
+  document.body.appendChild(prevSideBtn);
+
+  const nextSideBtn = document.createElement('button');
+  nextSideBtn.className = 'slide-side-nav next';
+  nextSideBtn.innerHTML = ICONS.chevronL;
+  nextSideBtn.setAttribute('aria-label', 'השקף הבא');
+  nextSideBtn.title = 'השקף הבא';
+  nextSideBtn.addEventListener('click', () => slidesGo(currentSlide + 1));
+  document.body.appendChild(nextSideBtn);
 
   const modeBtn = makeBtn('float-mode', 'מצב שקפים (Esc לחזרה)', ICONS.slides);
   modeBtn.addEventListener('click', () => {
