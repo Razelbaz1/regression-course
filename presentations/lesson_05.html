@@ -1,0 +1,637 @@
+<!doctype html>
+<!--
+  Lesson 05 — Polynomial + Parameter Selection
+  Aligned with: lesson_plans/lesson_05.md (8 blocks + summary)
+  Notebook anchor: regression-course/lesson5/Tirgul.ipynb (21 cells)
+-->
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=1920, initial-scale=1">
+  <title>Lesson 05 — Polynomial + Parameter Selection</title>
+
+  <link rel="stylesheet" href="shared/palette.css">
+  <link rel="stylesheet" href="shared/components.css">
+  <link rel="stylesheet" href="shared/styles.css">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+          onload="renderMathInElement(document.body, {delimiters: [{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}]});"></script>
+</head>
+
+<body>
+
+  <header class="lesson-nav">
+    <a href="lesson_04.html"><bdi dir="ltr">←</bdi> השיעור הקודם: Dummy Variables</a>
+    <span class="lesson-name">Lesson 05 — Polynomial + Parameter Selection</span>
+    <a href="lesson_06.html">השיעור הבא: Interactions <bdi dir="ltr">→</bdi></a>
+  </header>
+
+  <main>
+
+    <div class="lesson-title-banner">
+      <h1>Regression Course — Lesson 05</h1>
+      <div class="subtitle">Polynomial + Parameter Selection — מתי מודל "מורכב יותר" הוא לא בהכרח טוב יותר</div>
+      <span class="pill">פרק: Linear (5/6)</span>
+    </div>
+
+    <div class="prev-reminder">
+      <strong>תזכורת מהשיעור הקודם:</strong> ראינו איך משלבים משתנה קטגוריאלי במודל לינארי. דמיים $= k-1$ עמודות בינאריות עם baseline שמתחבא ב-<code class="ltr">intercept</code>. F-test משותף הוא הכלי הנכון לבדוק אם הקבוצה כולה תורמת — לא $t$-tests בודדים.
+    </div>
+
+    <nav class="toc">
+      <h2>תוכן עניינים</h2>
+      <ol>
+        <li><a href="#block-1">פרק 1 — פתיחה ורענון משיעור 04</a></li>
+        <li><a href="#block-2">פרק 2 — דאטה ומודל לינארי ראשוני</a></li>
+        <li><a href="#block-3">פרק 3 — פולינומיאלי: דרגות 1, 2, 5</a></li>
+        <li><a href="#block-4">פרק 4 — Train vs. Test — overfitting בפועל</a></li>
+        <li><a href="#block-5">פרק 5 — מעבר: בחירת מודל</a></li>
+        <li><a href="#block-6">פרק 6 — AIC, BIC, adjusted-R²</a></li>
+        <li><a href="#block-7">פרק 7 — Forward, Backward, Stepwise</a></li>
+        <li><a href="#block-8">פרק 8 — סגירה ותרגיל</a></li>
+        <li><a href="#summary">סיכום + הצצה לשיעור 6</a></li>
+      </ol>
+    </nav>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 1 — Opening & Refresher (cells 0–2)                           -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-1">
+      <div class="section-banner">
+        <h2>פרק 1 — פתיחה ורענון משיעור 04</h2>
+      </div>
+
+      <p>עד עכשיו הרחבנו את המודל הלינארי בשני כיוונים: <b>מספר רגרסורים</b> (שיעור 03 — multivariate, עם multicollinearity ו-VIF) ו-<b>סוג רגרסורים</b> (שיעור 04 — קטגוריאליים, עם דמיים). היום מרחיבים בכיוון שלישי — <b>גמישות פונקציונלית של הקשר</b>. מה אם הקשר בין $X$ ל-$Y$ אינו ישר?</p>
+
+      <div class="callout">
+        <h3>מאיפה אנחנו ממשיכים</h3>
+        <ol>
+          <li><b>ראינו טרנספורמציות ל-$Y$</b> (שיעור 02) — לוג, חזקה — לטיפול בהומוסקדסטיות ובלא-לינאריות. אבל לפעמים $Y$ הוא בסדר גמור — הקשר עצמו אינו ישר.</li>
+          <li><b>היום:</b> במקום לשנות את $Y$, נוסיף איברי חזקה ל-$X$ — $X^2, X^3, \dots$. זה הופך את המודל ל<b>פולינומיאלי</b>.</li>
+          <li><b>הסכנה החדשה:</b> ככל שמוסיפים איברים, $R^2$ עולה — אבל זה לא בהכרח אומר שהמודל יותר טוב. נפגוש <b>overfitting</b>, ונפתח כלים שיודעים לבחור את הדרגה הנכונה — <b>AIC, BIC, adjR², stepwise</b>.</li>
+        </ol>
+      </div>
+
+      <p>שני המסרים של היום: (א) המודל הפולינומיאלי הוא <b>עדיין מודל לינארי</b> — לינארי בפרמטרים, לא ב-$X$. כל הכלים מ-statsmodels ממשיכים לעבוד. (ב) <code class="ltr">summary()</code> ו-$R^2$ לבדם <b>אינם מספיקים</b> לבחירת מודל. צריך קריטריון שמאזן התאמה מול מורכבות.</p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תאים 0–2</span> (כותרת + ייבוא ספריות).
+        </span>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 2 — Data and naive linear fit (cells 3–4)                     -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-2">
+      <div class="section-banner">
+        <h2>פרק 2 — דאטה ומודל לינארי ראשוני</h2>
+      </div>
+
+      <div class="callout">
+        <h3>הסיפור (המשך משיעור 04)</h3>
+        <p>מנהל הבטיחות סיים עם דמיים, וגילה ש-<code class="ltr">Factory</code> לא תורם הרבה. נשאר עם <code class="ltr">guidance</code> ו-<code class="ltr">investment</code>. אבל אז הוא מסתכל מקרוב על הקשר בין שעות הדרכה לתאונות — <b>וזה לא נראה ישר</b>. בקצוות (שעות מעטות מאוד או רבות מאוד) הקשר נראה <i>מתיישר</i>. ההסבר הפיזיקלי הגיוני: השעות הראשונות מורידות תאונות הרבה — לומדים את הבסיס; השעות האחרונות פחות — תרומה שולית פוחתת.</p>
+        <p style="margin:10px 0 0 0; padding:8px; border-right:3px solid #4a8; background:#f4faf6;"><i>"אולי המודל הלינארי לא תופס את הסיפור? אולי צריך להוסיף איבר ריבועי?"</i></p>
+      </div>
+
+      <p>נדגים את הרעיון על <b>דאטה סינתטי</b> שכל הסיפור שלו ידוע מראש: $y = 3 + 2x - 0.5x^2 + \varepsilon$, $x \in [-3, 3]$, $n = 40$. האמת מבנית פולינומיאלית מדרגה $2$. נראה אם המודלים השונים מצליחים לזהות את זה.</p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תא 4</span> (יצירת הדאטה + scatter + מודל לינארי + residuals).
+        </span>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>מה ראינו בגרפים</h3>
+        <ul>
+          <li><b>ה-scatter (פאנל שמאל):</b> $40$ נקודות פזורות, אין קשר ישר ברור לעין. רואים מין "גבעה" באמצע — הנקודות עולות ומתחילות לרדת סביב $x \approx 2$.</li>
+          <li><b>מודל לינארי:</b> $\hat y = b_0 + b_1 x$. $R^2 \approx 0.80$ — לא רע, נראה כאילו "הקו תופס משהו".</li>
+          <li><b>residuals plot (פאנל ימין):</b> רואים <b>קשת ברורה</b> — בקצוות הנקודות מתחת לקו, באמצע מעליו. <b>זה לא רעש אקראי.</b> זה דפוס מבני שאומר: "הלינארי מפספס משהו שיטתי".</li>
+        </ul>
+        <p style="margin:8px 0 0 0;">הקשת ב-residuals היא הסימן הקלאסי לכך שהקשר אינו לינארי. <b>אופציה 1:</b> טרנספורמציה (לוג, חזקה — שיעור 02). <b>אופציה 2:</b> להוסיף איבר ריבועי ל-$x$. נבחן את האופציה השנייה היום.</p>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 3 — Polynomial fits: degrees 1, 2, 5 (cells 5–7)              -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-3">
+      <div class="section-banner">
+        <h2>פרק 3 — פולינומיאלי: דרגות 1, 2, 5</h2>
+      </div>
+
+      <p><b>הרעיון:</b> במקום לעבוד עם $x$ בלבד, נוסיף עמודות $x^2, x^3, \dots, x^d$. כל עמודה היא "פיצ'ר" חדש. המודל לומד מקדם נפרד לכל אחד.</p>
+
+      <div class="formula-box">
+        $\hat{Y} = b_0 + b_1 x + b_2 x^2 + b_3 x^3 + \ldots + b_d x^d$
+      </div>
+
+      <p style="margin-top:10px;"><b>שימו לב — זה עדיין מודל לינארי.</b> הוא לינארי <b>בפרמטרים</b> ($b_0, b_1, \dots, b_d$), לא ב-$x$. כל הכלים של OLS — הפתרון הסגור $\hat{\beta} = (X^T X)^{-1} X^T y$, $R^2$, p-values, summary — ממשיכים לעבוד בלי שינוי. אנחנו רק בונים את המטריצה $X$ עם עמודות נוספות.</p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תאים 6–7</span> (יצירת פיצ'רים פולינומיאליים + fit לדרגות $1, 2, 5$ + ויזואליזציה).
+        </span>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>מה ראינו בקוד</h3>
+        <ul>
+          <li><b>$R^2$ עולה עם הדרגה:</b> $0.80 \to 0.91 \to 0.91$ עבור $d = 1, 2, 5$.</li>
+          <li><b>הקפיצה הגדולה היא בין $1$ ל-$2$.</b> דרגה $2$ קופצת ב-$11$ נקודות. בין $2$ ל-$5$ — שיפור זניח של $0.0006$.</li>
+          <li><b>מספר הפרמטרים:</b> דרגה $1$ עם $k = 2$ (intercept + $b_1$); דרגה $2$ עם $k = 3$; דרגה $5$ עם $k = 6$. דרגה $5$ "אוכלת" $4$ פרמטרים נוספים בעבור שיפור זניח.</li>
+        </ul>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>מה ראינו בגרף</h3>
+        <ul>
+          <li><b>אדום (degree 1):</b> קו ישר. מפספס את הקשת. אותו דבר שראינו בפרק 2.</li>
+          <li><b>ירוק (degree 2):</b> מתעקל יפה. תופס את "הגבעה" — נראה כאילו זה המודל הנכון.</li>
+          <li><b>כחול (degree 5):</b> <b>מתפתל</b>. בנקודות עם הרבה נתונים זה דומה לירוק, אבל בקצוות — איפה שיש מעט נקודות — המודל "מנסה לעבור דרך הרעש". זה <b>overfitting</b> ויזואלית.</li>
+        </ul>
+      </div>
+
+      <div class="qa">
+        <div class="question">שאלה לכיתה: מסתכלים על $3$ ההתאמות — דרגה $1$ (קו ישר, $R^2 = 0.80$), דרגה $2$ ($R^2 = 0.91$), דרגה $5$ ($R^2 = 0.91$). דרגה $5$ נראית "יותר עשירה" — היא מתפתלת מסביב לנקודות. <b>מי "המודל הנכון"? איך מחליטים?</b></div>
+      </div>
+
+      <p style="margin-top:14px;">לפני שאני נותן תשובות פורמליות — שני סוגי כלים שנפגוש: <b>(1)</b> חלוקה לדאטה אימון ודאטה מבחן (פרק 4), ו-<b>(2)</b> קריטריונים מספריים שמענישים על מורכבות — AIC, BIC, adjR² (פרק 6). בינתיים, השאלה הקרובה: למה $R^2$ לבדו לא יספיק?</p>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 4 — Train vs. Test: overfitting in action (cells 8–9)         -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-4">
+      <div class="section-banner">
+        <h2>פרק 4 — Train vs. Test — overfitting בפועל</h2>
+      </div>
+
+      <p><b>הרעיון:</b> נחלק את הדאטה לשני חלקים — <b>train</b> ($70\%$, $28$ נקודות) ו-<b>test</b> ($30\%$, $12$ נקודות). נתאים מודלים <i>רק על</i> train, ונמדוד $R^2$ על שניהם. אם המודל לומד דפוס אמיתי — הוא יחזה היטב גם על test. אם הוא לומד את הרעש של train — הוא ייכשל על test.</p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תא 9</span> (חלוקה $70/30$ + fit על train + הערכה על test).
+        </span>
+      </div>
+
+      <div class="qa">
+        <div class="question">שאלה לכיתה: מה תקרה ל-$R^2$ אם נמשיך להוסיף איברי חזקה — $x^3, x^4, \dots, x^{10}, x^{20}$? יעלה? יישאר? יירד?</div>
+        <button class="toggle-btn">גלה תשובה</button>
+        <div class="answer">
+          <p><b>$R^2$ יעלה או יישאר זהה — לעולם לא יירד.</b></p>
+          <p style="margin-top:8px;"><b>למה?</b> הוספת רגרסור (גם רעש שרירותי שאינו קשור ל-$y$) יכולה רק <i>להגדיל</i> את $R^2$. הסיבה פשוטה: המודל החדש <b>תמיד יכול</b> להציב מקדם $0$ למשתנה החדש, ובכך לחזור בדיוק לחיזויים של המודל הקודם. אם הוא <i>בוחר</i> מקדם שונה — זה רק כי הוא מצא שזה משפר את ה-fit (אפילו בקצת).</p>
+          <p style="margin-top:8px;"><b>המשמעות:</b> $R^2$ <b>לא</b> יכול לשמש לבחירה בין דרגות שונות — הוא תמיד יבחר את הגבוהה ביותר. צריך מדד שמעניש על תוספת פרמטרים — וזה המעבר ל-AIC/BIC/adjR² (פרק 6).</p>
+        </div>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>מה ראינו בטבלה</h3>
+        <ul>
+          <li><b>train R² עולה מונוטונית:</b> $0.80 \to 0.90 \to 0.90 \to 0.91 \to 0.91$. עקבי עם השאלה למעלה — $R^2$ לעולם לא יורד.</li>
+          <li><b>test R² עולה ל-$0.90$ ב-degree 2, ואז יורד:</b> $0.77 \to 0.90 \to 0.89 \to 0.87 \to 0.86$. זה <b>overfitting אמפירי</b>: המודל לומד את הרעש של train, ואז מפספס על test.</li>
+          <li><b>test RMSE מספר ממשי:</b> $1.19$ ב-degree 2, $1.37$ ב-degree 5 — שגיאה גבוהה ב-$15\%$. על נתונים שהמודל לא ראה, הוא טועה יותר ככל שהוא "מתעמק" מעל הצורך.</li>
+        </ul>
+      </div>
+
+      <div class="callout">
+        <h3>📊 העשרה: bias-variance tradeoff</h3>
+
+        <p>למה זה קורה — <b>תיאוריה קצרה</b>. שגיאת חיזוי על נתונים חדשים מתפרקת לשלושה רכיבים:</p>
+
+        <div class="formula-box">
+          $\text{שגיאה כוללת} \approx \text{bias}^2 + \text{variance} + \text{רעש בלתי-נמנע}$
+        </div>
+
+        <ul style="margin:10px 0;">
+          <li><b>bias</b> — כמה רחוק <i>בממוצע</i> החיזוי של המודל מהאמת. גבוה כשהמודל פשוט מדי לתפוס את הקשר.</li>
+          <li><b>variance</b> — כמה החיזוי משתנה בין דגימות שונות של דאטה. גבוה כשהמודל גמיש מדי — "מתפתל" סביב כל דגימה ספציפית.</li>
+          <li><b>רעש</b> — שונות אמיתית של $y$ סביב הציפייה. בלתי-נמנעת (אפילו המודל המושלם לא יוכל לעקוף אותה).</li>
+        </ul>
+
+        <h4 style="margin-top:14px;">מה קורה לכל רכיב כדרגת המודל עולה?</h4>
+
+        <table style="margin:10px 0; border-collapse:collapse; width:100%; max-width:680px;">
+          <thead>
+            <tr style="background:#eaf6ff;">
+              <th style="padding:8px 12px; border:1px solid #aac; text-align:right;">דרגה</th>
+              <th style="padding:8px 12px; border:1px solid #aac;">bias</th>
+              <th style="padding:8px 12px; border:1px solid #aac;">variance</th>
+              <th style="padding:8px 12px; border:1px solid #aac; text-align:right;">תוצאה</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="padding:8px 12px; border:1px solid #aac; text-align:right;"><b>נמוכה ($d=1$)</b></td>
+              <td style="padding:8px 12px; border:1px solid #aac; text-align:center;">גבוה</td>
+              <td style="padding:8px 12px; border:1px solid #aac; text-align:center;">נמוך</td>
+              <td style="padding:8px 12px; border:1px solid #aac; text-align:right;">underfit — לא תופס את הקשר</td>
+            </tr>
+            <tr>
+              <td style="padding:8px 12px; border:1px solid #aac; text-align:right; background:#f4faf6;"><b>בדיוק ($d=2$)</b></td>
+              <td style="padding:8px 12px; border:1px solid #aac; text-align:center; background:#f4faf6;"><b>נמוך</b></td>
+              <td style="padding:8px 12px; border:1px solid #aac; text-align:center; background:#f4faf6;"><b>נמוך</b></td>
+              <td style="padding:8px 12px; border:1px solid #aac; text-align:right; background:#f4faf6;"><b>איזון אופטימלי — שגיאה כוללת מינימלית</b></td>
+            </tr>
+            <tr>
+              <td style="padding:8px 12px; border:1px solid #aac; text-align:right;"><b>גבוהה ($d=5+$)</b></td>
+              <td style="padding:8px 12px; border:1px solid #aac; text-align:center;">נמוך</td>
+              <td style="padding:8px 12px; border:1px solid #aac; text-align:center;">גבוה</td>
+              <td style="padding:8px 12px; border:1px solid #aac; text-align:right;">overfit — תופס רעש</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <p style="margin-top:10px;"><b>הקשר ל-train/test:</b> train מודד התאמה לדגימה ספציפית — bias יורד בעקביות, variance לא נראה. test מודד תחזית על דגימה אחרת — שני הרכיבים נראים, ולכן יש <b>נקודת מינימום</b> של שגיאה. זה בדיוק מה שראינו אמפירית: test RMSE מינימלי ב-$d = 2$ ולא ב-$d = 5$.</p>
+      </div>
+
+      <p style="margin-top:14px;">חלוקה ל-train/test היא הדרך הישירה ביותר לראות overfit. אבל היא דורשת <b>חלוקה</b> — מה אם הדאטה קטן ($n = 30$, נחלק ל-$21/9$?). חבל לאבד $30\%$ מהדאטה. צריך משהו טוב יותר. נמשיך לפרק 5.</p>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 5 — Bridge: model selection (cell 10)                         -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-5">
+      <div class="section-banner">
+        <h2>פרק 5 — מעבר: בחירת מודל</h2>
+      </div>
+
+      <p>ראינו ש-degree 2 הכי טוב לפי train/test split. אבל הסיפור גדול יותר — והוא לא רק על דרגת פולינום, אלא על <b>בחירת מודל באופן שיטתי</b>.</p>
+
+      <div class="callout">
+        <h3>למה צריך גישה כללית יותר</h3>
+        <ol>
+          <li><b>train/test דורש חלוקה.</b> בדאטה קטן זה יקר. אם $n = 30$, לחלק ל-$21/9$ זה אובדן של $30\%$ מידע. <b>חוץ מזה</b>, התשובה תלויה ב-split ספציפי — בכל הרצה שונה נקבל תוצאה קצת אחרת.</li>
+          <li><b>עד עכשיו דיברנו על דרגה אחת.</b> $5$ מודלים מקובעים-מראש ($d=1, 2, 3, 4, 5$). אבל בעולם האמיתי יש <b>הרבה משתנים מועמדים</b> — $x_1, x_2, \dots, x_p$. וכל אחד יכול להיכלל או לא להיכלל. <b>כמה תתי-קבוצות?</b></li>
+        </ol>
+      </div>
+
+      <div class="qa">
+        <div class="question">שאלה לכיתה: אם יש לי $10$ משתנים מסבירים מועמדים, כמה תתי-קבוצות אפשריות יש לבדוק?</div>
+        <button class="toggle-btn">גלה תשובה</button>
+        <div class="answer">
+          <p><b>$2^{10} = 1024$ תתי-קבוצות.</b> כל משתנה — נכלל או לא, $2$ אפשרויות, $10$ משתנים <bdi dir="ltr">⇒</bdi> $2^{10}$ קומבינציות.</p>
+          <p style="margin-top:8px;"><b>הצמיחה אקספוננציאלית:</b> $20$ משתנים <bdi dir="ltr">⇒</bdi> מעל מיליון. $30$ משתנים <bdi dir="ltr">⇒</bdi> מעל מיליארד. וזה <i>בלי</i> לדבר על פולינומים, אינטראקציות, וטרנספורמציות.</p>
+          <p style="margin-top:8px;"><b>חיפוש ממצה לא ישים</b> בכמעט כל בעיה ריאלית. צריך אלגוריתם שיודע לדלג — וזה ה-<b>stepwise</b>.</p>
+        </div>
+      </div>
+
+      <p style="margin-top:14px;">אז שתי משימות עד סוף השיעור:</p>
+
+      <ol>
+        <li><b>קריטריון מספרי</b> שמשווה מודלים בצורה אחידה — AIC, BIC, adjR² (פרק 6).</li>
+        <li><b>אלגוריתם חיפוש</b> שלא מחייב לבדוק את כל $2^p$ המודלים — stepwise (פרק 7).</li>
+      </ol>
+
+      <p>נתחיל מהקריטריונים.</p>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 6 — AIC, BIC, adjusted-R² (cells 11–13)                       -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-6">
+      <div class="section-banner">
+        <h2>פרק 6 — AIC, BIC, adjusted-R²</h2>
+      </div>
+
+      <p><b>הרעיון המשותף לשלוש המדידות:</b> מודדים התאמה ל-train (כמו $R^2$), אבל <b>מענישים על מספר הפרמטרים</b>. ככל שהמודל גדול יותר — הקנס גבוה יותר.</p>
+
+      <div class="formula-box" style="font-size:17px;">
+        $\bar{R}^2 = 1 - \dfrac{(1-R^2)(n-1)}{n-k-1}$ &nbsp;&nbsp;|&nbsp;&nbsp; $\text{AIC} = 2k - 2\ln L$ &nbsp;&nbsp;|&nbsp;&nbsp; $\text{BIC} = k\ln(n) - 2\ln L$
+      </div>
+
+      <p style="margin-top:10px;">$k$ = מספר הפרמטרים, $n$ = מספר התצפיות, $L$ = ה-likelihood המקסימלית של המודל. כל שלוש המדידות זמינות ישירות ב-statsmodels: <code class="ltr">results.rsquared_adj</code>, <code class="ltr">results.aic</code>, <code class="ltr">results.bic</code>.</p>
+
+      <p style="margin-top:10px;"><b>כיוון אופטימיזציה:</b> adjR² <b>גבוה</b> טוב, AIC ו-BIC <b>נמוך</b> טוב.</p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תאים 12–13</span> (חישוב הקריטריונים לכל degree + ויזואליזציה).
+        </span>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>מה ראינו בטבלה</h3>
+        <ul>
+          <li><b>$R^2$ עולה מונוטונית:</b> $0.80 \to 0.91 \to 0.91 \to 0.91 \to 0.91$. מאשש את השאלה לכיתה — $R^2$ לעולם לא יורד.</li>
+          <li><b>$\bar{R}^2$ <i>אינו</i> עולה מונוטונית:</b> $0.80 \to 0.90 \to 0.90 \to 0.90 \to 0.89$ — מקסימום ב-$d = 2$, ואז יורד.</li>
+          <li><b>AIC ו-BIC עם <i>U רגיל</i>:</b> $150 \to 123 \to 125 \to 126 \to 128$ (AIC) ו-$154 \to 128 \to 131 \to 135 \to 138$ (BIC). <b>שניהם — מינימום ב-$d = 2$.</b></li>
+          <li><b>שלוש המדידות מסכימות:</b> degree $2$ הוא הבחירה הנכונה. <b>זה הסיפור הקלאסי</b> — כשהדאטה מספיק נקי, הקריטריונים מתכנסים לאותה מסקנה. (יש מקרים שבהם הם חולקים — נדבר על זה ב-bullet הבא בקלאוט.)</li>
+        </ul>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>מה ראינו בגרף</h3>
+        <ul>
+          <li><b>3 גרפים זה לצד זה:</b> AIC, BIC, adjR². צורה: <b>$U$ הפוך</b> ל-adjR² (מקסימום באמצע), <b>$U$ רגיל</b> ל-AIC ו-BIC (מינימום באמצע).</li>
+          <li><b>כל גרף מצביע על degree 2.</b> ההפרש מ-$d=2$ ל-$d=3$ הוא $4$ ב-BIC, $2$ ב-AIC, ו-$0.003$ ב-adjR². <b>BIC מתלכד יותר מ-AIC ל-degree 2</b> — זה ביטוי של "שמרנות" ה-BIC, שניפגוש בקלאוט.</li>
+        </ul>
+      </div>
+
+      <div class="callout">
+        <h3>📊 העשרה: האינטואיציה של 3 הקריטריונים</h3>
+
+        <p>שלוש המדידות מענישות על מורכבות — אבל בעוצמה שונה. ההבדל הזה משפיע על הבחירה הסופית.</p>
+
+        <h4 style="margin-top:14px;">adjR² — הקנס החלש</h4>
+
+        <div class="formula-box" style="font-size:16px;">
+          $\bar{R}^2 = 1 - \dfrac{(1-R^2)(n-1)}{n-k-1}$
+        </div>
+
+        <p style="margin-top:8px;">הקנס מוסתר במכנה. ככל ש-$k$ גדל, $n-k-1$ קטן, ולכן השבר $(1-R^2)(n-1)/(n-k-1)$ גדל — מה ש<i>מקטין</i> את $\bar{R}^2$. אבל הקנס <b>חלש</b>: לדוגמה $n=40, k=3$ נותן מכנה $36$, $k=4$ מכנה $35$ — ירידה של $\sim 3\%$. אם $R^2$ עולה אפילו ב-$0.001$, הקנס יכול להיבלע. <b>נטייה: בחירת מודלים גדולים יותר.</b></p>
+
+        <h4 style="margin-top:14px;">AIC — הקנס הבינוני</h4>
+
+        <div class="formula-box" style="font-size:16px;">
+          $\text{AIC} = 2k - 2\ln L$
+        </div>
+
+        <p style="margin-top:8px;">הקנס פשוט: <b>$2k$ — קבוע, לא תלוי ב-$n$</b>. כל פרמטר נוסף "עולה" $2$ יחידות AIC. הרעיון התיאורטי: AIC הוא אומדן ל"שגיאת חיזוי על דאטה חדש" (קשור ל-Kullback-Leibler divergence). מועדף נמוך <bdi dir="ltr">⇒</bdi> $-2\ln L$ ירוויח כשהמודל מתאים, $+2k$ יעניש כשהוא מורכב מדי.</p>
+
+        <h4 style="margin-top:14px;">BIC — הקנס החזק</h4>
+
+        <div class="formula-box" style="font-size:16px;">
+          $\text{BIC} = k\ln(n) - 2\ln L$
+        </div>
+
+        <p style="margin-top:8px;">הקנס $k\ln(n)$ — <b>גדל עם $n$</b>. עבור $n = 40$: $\ln(40) \approx 3.69$ <bdi dir="ltr">⇒</bdi> קנס $\sim 3.69k$, כמעט פי $2$ מ-AIC. עבור $n = 1000$: $\ln(1000) \approx 6.9$ <bdi dir="ltr">⇒</bdi> קנס $\sim 6.9k$. הרעיון התיאורטי: BIC הוא קירוב לוגריתמי ל"פקטור-בייס" — איזה מודל הכי סביר שיצר את הדאטה (תחת prior אחיד). <b>נטייה: בחירת מודלים קטנים יותר.</b></p>
+
+        <h4 style="margin-top:14px;">השוואת התנהגות</h4>
+
+        <table style="margin:10px 0; border-collapse:collapse; width:100%; max-width:680px;">
+          <thead>
+            <tr style="background:#eaf6ff;">
+              <th style="padding:8px 12px; border:1px solid #aac; text-align:right;">קריטריון</th>
+              <th style="padding:8px 12px; border:1px solid #aac;">קנס על $k$</th>
+              <th style="padding:8px 12px; border:1px solid #aac;">השפעת $n$</th>
+              <th style="padding:8px 12px; border:1px solid #aac; text-align:right;">נטייה</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="padding:8px 12px; border:1px solid #aac; text-align:right;">$\bar{R}^2$</td>
+              <td style="padding:8px 12px; border:1px solid #aac; text-align:center;">חלש</td>
+              <td style="padding:8px 12px; border:1px solid #aac; text-align:center;">יציב</td>
+              <td style="padding:8px 12px; border:1px solid #aac; text-align:right;">מודל גדול</td>
+            </tr>
+            <tr>
+              <td style="padding:8px 12px; border:1px solid #aac; text-align:right;">AIC</td>
+              <td style="padding:8px 12px; border:1px solid #aac; text-align:center;">$2k$</td>
+              <td style="padding:8px 12px; border:1px solid #aac; text-align:center;">יציב</td>
+              <td style="padding:8px 12px; border:1px solid #aac; text-align:right;">מודל בינוני</td>
+            </tr>
+            <tr>
+              <td style="padding:8px 12px; border:1px solid #aac; text-align:right;">BIC</td>
+              <td style="padding:8px 12px; border:1px solid #aac; text-align:center;">$k\ln(n)$</td>
+              <td style="padding:8px 12px; border:1px solid #aac; text-align:center;">קנס מתחזק</td>
+              <td style="padding:8px 12px; border:1px solid #aac; text-align:right;">מודל קטן (פרסימוני)</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h4 style="margin-top:14px;">למה לפעמים AIC ו-BIC חולקים?</h4>
+
+        <p>שני הקריטריונים פותרים <i>בעיות שונות</i>:</p>
+        <ul style="margin:8px 0;">
+          <li><b>AIC שואל:</b> "איזה מודל יחזה הכי טוב על דאטה חדש?"</li>
+          <li><b>BIC שואל:</b> "איזה מודל הכי סביר שיצר את הדאטה?"</li>
+        </ul>
+
+        <p style="margin-top:8px;">בפועל הם <i>לרוב</i> נותנים אותה תשובה. כשהם חולקים — <b>BIC הולך עם הפרסימוניות</b> (מודל קטן יותר), AIC עם הגמישות (מודל גדול יותר). לסטודנט: כש-AIC ו-BIC מסכימים — בטוח. כשהם חולקים — חשוב מה אתה רוצה (חיזוי או הסקה), ולא לחשוש לנמק את הבחירה.</p>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 7 — Forward, Backward, Stepwise (cells 14–17)                 -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-7">
+      <div class="section-banner">
+        <h2>פרק 7 — Forward, Backward, Stepwise</h2>
+      </div>
+
+      <p>ראינו שעם $10$ משתנים יש $1024$ תתי-קבוצות, ועם $20$ — מיליון. <b>חיפוש ממצה לא ישים</b>. הפתרון: <b>אלגוריתמי בחירת משתנים</b> שלא בודקים את כולם — רק מסלול לוקאלי בתוך מרחב המודלים. נראה <b>שלוש שיטות</b> קלאסיות, כולן מבוססות על אותו רעיון אך מתחילות מנקודות שונות.</p>
+
+      <p>הקריטריון בכל השלוש: <b>$p$-value עם סף $\alpha = 0.05$</b> — זאת הגישה הסטנדרטית במרבית הקורסים.</p>
+
+      <h3 style="margin-top:24px;">1. Forward Selection — בנייה מאפס</h3>
+
+      <div class="callout">
+        <h3>האלגוריתם</h3>
+        <ol>
+          <li><b>התחל ריק</b> — מודל עם constant בלבד.</li>
+          <li><b>בכל צעד:</b> בדוק כל מועמד שעדיין לא במודל. עבור כל אחד — בנה את המודל "הנוכחי + מועמד" ובחן את ה-$p$-value שלו.</li>
+          <li><b>הוסף את המועמד עם ה-$p$ הנמוך ביותר</b> — אם $p < 0.05$.</li>
+          <li><b>עצור</b> כשאף מועמד לא עובר את הסף.</li>
+        </ol>
+      </div>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תא 15</span> (<code class="ltr">forward_selection</code>).
+        </span>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>מה ראינו ב-output</h3>
+        <ul>
+          <li><b>צעד 1:</b> Add $x$ ($p < 0.0001$). מתוך $5$ המועמדים $-$ $x$ הכי מובהק.</li>
+          <li><b>צעד 2:</b> Add $x^2$ ($p < 0.0001$). מבין הנותרים — $x^2$ הכי מובהק.</li>
+          <li><b>צעד 3:</b> נבדקים $x^3, x^4, x^5$. הכי-נמוך $p = 0.75 \geq 0.05$. <b>עוצרים.</b></li>
+          <li><b>תוצאה: $\{x, x^2\}$.</b></li>
+        </ul>
+      </div>
+
+      <h3 style="margin-top:24px;">2. Backward Elimination — ניקוי ממודל מלא</h3>
+
+      <div class="callout">
+        <h3>האלגוריתם</h3>
+        <ol>
+          <li><b>התחל מלא</b> — מודל עם <i>כל</i> המועמדים.</li>
+          <li><b>בכל צעד:</b> הסתכל על ה-$p$-values של כל המקדמים. בחר את ה-$p$ <b>הגבוה ביותר</b>.</li>
+          <li><b>הסר את המשתנה הזה</b> — אם $p > 0.05$. בנה מחדש את המודל בלעדיו.</li>
+          <li><b>עצור</b> כשכל המקדמים מובהקים ($p$ של כל אחד $\leq 0.05$).</li>
+        </ol>
+      </div>
+
+      <p><b>הערה חשובה:</b> Backward דורש ש<b>המודל המלא יהיה כשיר</b> — חייב $n > p$ (יותר תצפיות ממשתנים). במקרה שלנו: $n = 40$, $p = 5$ — בסדר. בדאטה רחב ($n < p$) backward לא ישים, ויש לבחור forward או רגולריזציה.</p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תא 16</span> (<code class="ltr">backward_elimination</code>).
+        </span>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>מה ראינו ב-output</h3>
+        <ul>
+          <li><b>צעד 1:</b> מתחילים עם $\{x, x^2, x^3, x^4, x^5\}$. הכי-לא-מובהק: $x^3$ ($p = 0.97$). <b>מסירים.</b></li>
+          <li><b>צעד 2:</b> נשארנו עם $\{x, x^2, x^4, x^5\}$. ה-$p$-ים מתעדכנים. הכי-לא-מובהק עכשיו: $x^5$ ($p = 0.72$). <b>מסירים.</b></li>
+          <li><b>צעד 3:</b> נשארנו עם $\{x, x^2, x^4\}$. הכי-לא-מובהק: $x^4$ ($p = 0.75$). <b>מסירים.</b></li>
+          <li><b>צעד 4:</b> נשארנו עם $\{x, x^2\}$. שניהם $p < 0.0001$. <b>עוצרים.</b></li>
+          <li><b>תוצאה: $\{x, x^2\}$.</b> שלושת איברי הרעש זוהו ושימוסו, אחד אחרי השני.</li>
+        </ul>
+      </div>
+
+      <h3 style="margin-top:24px;">3. Stepwise — שילוב של השניים</h3>
+
+      <div class="callout">
+        <h3>האלגוריתם</h3>
+        <ol>
+          <li><b>התחל ריק</b> (כמו forward).</li>
+          <li><b>בכל איטרציה:</b>
+            <ul>
+              <li><b>צעד forward:</b> נסה להוסיף את המשתנה עם ה-$p$ הכי נמוך מבין הלא-נכללים. אם $p < \alpha_{\text{in}} = 0.05$ — הוסף.</li>
+              <li><b>צעד backward:</b> אחרי ההוספה, בדוק את כל המקדמים הנוכחיים. אם ל-משתנה כלשהו יש $p > \alpha_{\text{out}} = 0.05$ — הסר אותו.</li>
+            </ul>
+          </li>
+          <li><b>עצור</b> כשבאיטרציה אחת לא הוספנו ולא הסרנו כלום.</li>
+        </ol>
+      </div>
+
+      <p><b>היתרון על forward טהור:</b> מה אם משתנה ש<i>נכלל מוקדם</i> נהיה לא-מובהק אחרי שמשתנים אחרים נוספו? Forward טהור לעולם לא יסיר. <b>Stepwise כן</b> — הוא יסיר אותו. זה מונע התקבעות במודל לא אופטימלי.</p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תא 17</span> (<code class="ltr">stepwise_selection</code>).
+        </span>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>מה ראינו ב-output</h3>
+        <ul>
+          <li><b>צעד 1:</b> Add $x$ ($p < 0.0001$). אחרי ההוספה — אין מה להסיר ($x$ מובהק).</li>
+          <li><b>צעד 2:</b> Add $x^2$ ($p < 0.0001$). אחרי ההוספה — אין מה להסיר.</li>
+          <li><b>צעד 3:</b> שום מועמד לא עובר את הסף. <b>עוצרים.</b></li>
+          <li><b>תוצאה: $\{x, x^2\}$.</b> במקרה הזה — <b>זהה ל-forward</b>.</li>
+        </ul>
+        <p style="margin:8px 0 0 0;"><b>למה stepwise לא הסיר?</b> כי שני המשתנים שנכנסו ($x$ ו-$x^2$) מובהקים מאוד גם בנוכחות זה של זה. אין סיבה להסיר. <b>בהקשרים אחרים</b> — מולטיקולינאריות, אינטראקציות, דאטה רחב — stepwise יכול לתת תוצאה שונה מ-forward.</p>
+      </div>
+
+      <h3 style="margin-top:24px;">סיכום: שלוש השיטות הסכימו</h3>
+
+      <table style="margin:12px 0; border-collapse:collapse; width:100%; max-width:680px;">
+        <thead>
+          <tr style="background:#eaf6ff;">
+            <th style="padding:8px 12px; border:1px solid #aac; text-align:right;">שיטה</th>
+            <th style="padding:8px 12px; border:1px solid #aac; text-align:right;">נקודת התחלה</th>
+            <th style="padding:8px 12px; border:1px solid #aac; text-align:right;">פעולה בכל צעד</th>
+            <th style="padding:8px 12px; border:1px solid #aac; text-align:right;">תוצאה אצלנו</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="padding:8px 12px; border:1px solid #aac; text-align:right;"><b>Forward</b></td>
+            <td style="padding:8px 12px; border:1px solid #aac; text-align:right;">ריק</td>
+            <td style="padding:8px 12px; border:1px solid #aac; text-align:right;">מוסיף ($p$ הכי נמוך)</td>
+            <td style="padding:8px 12px; border:1px solid #aac; text-align:right;">$\{x, x^2\}$</td>
+          </tr>
+          <tr>
+            <td style="padding:8px 12px; border:1px solid #aac; text-align:right;"><b>Backward</b></td>
+            <td style="padding:8px 12px; border:1px solid #aac; text-align:right;">מלא</td>
+            <td style="padding:8px 12px; border:1px solid #aac; text-align:right;">מסיר ($p$ הכי גבוה)</td>
+            <td style="padding:8px 12px; border:1px solid #aac; text-align:right;">$\{x, x^2\}$</td>
+          </tr>
+          <tr>
+            <td style="padding:8px 12px; border:1px solid #aac; text-align:right;"><b>Stepwise</b></td>
+            <td style="padding:8px 12px; border:1px solid #aac; text-align:right;">ריק</td>
+            <td style="padding:8px 12px; border:1px solid #aac; text-align:right;">מנסה להוסיף ולהסיר</td>
+            <td style="padding:8px 12px; border:1px solid #aac; text-align:right;">$\{x, x^2\}$</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p style="margin-top:10px;"><b>במקרה הנוכחי שלוש השיטות הסכימו</b> — כי הקשר האמיתי הוא פולינום פשוט מסדר $2$, וכל השיטות מצליחות לזהות אותו. <b>בהקשרים מורכבים יותר</b> — מולטיקולינאריות, אינטראקציות, רעש גבוה — שלוש השיטות יכולות לתת מודלים שונים. בדיקה הוגנת: רוץ את כולן, השווה. אם הן חולקות, הבן למה.</p>
+
+      <div class="callout">
+        <h3>אזהרה: $p$-values אחרי בחירה — מוטים</h3>
+
+        <p>אחרי שהאלגוריתם בוחר מודל, <code class="ltr">model.summary()</code> יציג $p$-values למקדמים שנבחרו. <b>הם נראים מובהקים — אבל מוטים כלפי מטה.</b></p>
+
+        <p style="margin-top:10px;"><b>הסיבה:</b> ה-$p$-values מחושבים <i>כאילו זה המודל היחיד</i>. אבל בפועל בחרנו אותו מתוך הרבה (במקרה שלנו — לפחות $5 + 4 + 3 = 12$ מודלים שנבדקו). זאת בעיית <b>post-selection inference</b> — בחירת המשתנים על בסיס "הכי מובהקים" מטה את ה-$p$-ים כלפי מטה.</p>
+
+        <p style="margin-top:10px;"><b>כלל אצבע לסטודנט:</b></p>
+        <ul style="margin:6px 0;">
+          <li><b>אחרי forward / backward / stepwise — אל תפרסם</b> "מצאנו אפקט מובהק עם $\text{p} < 0.001$".</li>
+          <li><b>תאמר במקום:</b> "מודל זה נבחר על בסיס $p$-values עם סף $0.05$; להסקה נדרש אישוש בלתי-תלוי על דאטה חדש."</li>
+        </ul>
+
+        <p style="margin-top:10px;"><b>שיטה תקפה:</b> לחלק את הדאטה לחצי. הריצו את הבחירה (כל אחת מהשיטות) על חצי אחד; הריצו <code class="ltr">summary()</code> רגיל על החצי השני (split-sample inference). זה לא במהלך השיעור היום, אבל חשוב לדעת שזה הפתרון הסטנדרטי.</p>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 8 — Closing & exercise (cells 18–20)                          -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-8">
+      <div class="section-banner">
+        <h2>פרק 8 — סגירה ותרגיל</h2>
+      </div>
+
+      <p>סיכום זריז של מה שלקחנו היום:</p>
+
+      <div class="callout callout--accent">
+        <h3>3 נקודות לקחת הביתה</h3>
+        <ol>
+          <li><b>פולינומיאלי = הרחבה לינארית.</b> הוספת $x^2, x^3, \dots$ למטריצת ה-$X$ הופכת את הקשר גמיש יותר — אבל המודל עדיין לינארי בפרמטרים. כל הכלים של OLS ממשיכים לעבוד.</li>
+          <li><b>$R^2$ לבדו לא בוחר מודל</b> — הוא תמיד עולה עם $k$. צריך קריטריון שמעניש על מורכבות: $\bar{R}^2$ (קנס חלש), AIC (בינוני), BIC (חזק). השלושה לרוב מסכימים — וכשלא, BIC הולך עם הפרסימוניות.</li>
+          <li><b>Stepwise = מכשיר חיפוש, לא מכשיר הסקה.</b> $p$-values אחרי stepwise <i>מוטים</i>. שימושי לבחירה ראשונית, לא לפרסום מסקנות.</li>
+        </ol>
+      </div>
+
+      <p><b>תרגיל קצר לכיתה:</b> יש לכם שני מודלים מאומנים על אותו דאטה: <b>מודל A</b> פולינומיאלי <code class="ltr">degree 5</code> עם $R^2 = 0.91$ ו-AIC $= 128$, ו-<b>מודל B</b> פולינומיאלי <code class="ltr">degree 2</code> עם $R^2 = 0.91$ ו-AIC $= 122$. <b>איזה מהם תבחרו, ולמה?</b> שאלה נוספת: איזה מהם ה-<code class="ltr">summary()</code> יציג כ"יותר מובהק" — כלומר עם יותר מקדמים בעלי $p$ קטן? <b>למה זה לא הקריטריון הנכון?</b></p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תאים 19–20</span> (<code class="ltr">Write your answer here</code> + תא קוד ריק).
+        </span>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- SUMMARY                                                             -->
+    <!-- ================================================================== -->
+    <section class="block" id="summary">
+      <div class="section-banner">
+        <h2>סיכום + הצצה לשיעור 6</h2>
+      </div>
+
+      <div class="callout">
+        <h3>5 נקודות לזכור</h3>
+        <ol>
+          <li><b>$\hat Y = b_0 + b_1 x + b_2 x^2 + \dots$ הוא עדיין מודל לינארי</b> — לינארי בפרמטרים. הוספת איברי חזקה היא רק שינוי ב-$X$, לא ב-OLS.</li>
+          <li><b>$R^2$ עולה מונוטונית עם $k$.</b> זה מה שהופך אותו לבלתי שימושי לבחירת מודל. צריך מדד עם קנס.</li>
+          <li><b>Train/test split וסי-קריטריונים — שתי גישות שונות לאותה בעיה.</b> Train/test ישיר וברור אבל "אוכל" דאטה. AIC/BIC/adjR² עובדים ישירות על כל הדאטה — חיסכון, אבל פחות אינטואיטיבי.</li>
+          <li><b>Bias-variance tradeoff:</b> שגיאת חיזוי = bias² + variance + רעש. דרגה נמוכה — bias גבוה. דרגה גבוהה — variance גבוה. אופטימום באמצע.</li>
+          <li><b>שלוש שיטות בחירה — Forward / Backward / Stepwise</b> — כולן מבוססות $p$-value עם סף $0.05$. Forward מתחיל ריק ומוסיף; Backward מתחיל מלא ומסיר; Stepwise משלב. heuristics — לא מבטיחות אופטימום גלובלי, ו-$p$-values אחריהן מוטים.</li>
+        </ol>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>בשיעור הבא — Interactions</h3>
+        <p>בשיעור 04 ראינו דמיים = קווי רגרסיה <b>מקבילים</b>. אבל מה אם השיפוע עצמו תלוי בקטגוריה? "הדרכה אפקטיבית יותר באריאל מאשר בירושלים" = שיפועים שונים. זאת <b>אינטראקציה</b>: $X_1 \cdot X_2$ במודל. נראה איך מפרשים את המקדם של איבר אינטראקציה ולמה צריך להיזהר עם פירוש המקדמים הרגילים. שיעור 06 — סיום פרק הלינארית.</p>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="lesson-footer">
+    Regression Course — Lesson 05 · TA: Raz Elbaz · עודכן: 2026-04-30
+  </footer>
+
+  <script src="shared/interactivity.js"></script>
+</body>
+</html>
