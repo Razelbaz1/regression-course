@@ -1,0 +1,564 @@
+<!doctype html>
+<!--
+  Lesson 04 — Dummy Variables (Categorical)
+  Aligned with: lesson_plans/lesson_04.md (8 blocks + summary)
+  Notebook anchor: regression-course/lesson4/lesson_4_dummies_tirgul.ipynb (18 cells)
+-->
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=1920, initial-scale=1">
+  <title>Lesson 04 — Dummy Variables</title>
+
+  <link rel="stylesheet" href="shared/palette.css">
+  <link rel="stylesheet" href="shared/components.css">
+  <link rel="stylesheet" href="shared/styles.css">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+          onload="renderMathInElement(document.body, {delimiters: [{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}]});"></script>
+</head>
+
+<body>
+
+  <header class="lesson-nav">
+    <a href="lesson_03.html"><bdi dir="ltr">←</bdi> השיעור הקודם: Multivariate Regression</a>
+    <span class="lesson-name">Lesson 04 — Dummy Variables</span>
+    <a href="lesson_05.html">השיעור הבא: Polynomial + Parameter Selection <bdi dir="ltr">→</bdi></a>
+  </header>
+
+  <main>
+
+    <div class="lesson-title-banner">
+      <h1>Regression Course — Lesson 04</h1>
+      <div class="subtitle">Dummy Variables — איך מכניסים שם של מפעל למודל לינארי</div>
+      <span class="pill">חטיבה: Linear (4/6)</span>
+    </div>
+
+    <div class="prev-reminder">
+      <strong>תזכורת מהשיעור הקודם:</strong> ראינו רגרסיה רב-משתנית עם רגרסורים מספריים. הלקח: פירוש $b_j$ דורש "כשהשאר קבועים", ו-multicollinearity מנפחת SE וגם מטה מקדמים. ההכרעה לטפל תלויה במטרה — חיזוי vs. הסקה.
+    </div>
+
+    <nav class="toc">
+      <h2>תוכן עניינים</h2>
+      <ol>
+        <li><a href="#block-1">פרק 1 — פתיחה ורענון משיעור 03</a></li>
+        <li><a href="#block-2">פרק 2 — מוטיבציה: השדה Factory</a></li>
+        <li><a href="#block-3">פרק 3 — הדרך הנאיבית: Factory_num</a></li>
+        <li><a href="#block-4">פרק 4 — הדרך הנכונה: One-Hot Encoding</a></li>
+        <li><a href="#block-5">פרק 5 — גיאומטריה: 3 קווים מקבילים</a></li>
+        <li><a href="#block-6">פרק 6 — Dummy Trap</a></li>
+        <li><a href="#block-7">פרק 7 — F-test משותף</a></li>
+        <li><a href="#block-8">פרק 8 — סגירה ותרגיל</a></li>
+        <li><a href="#summary">סיכום + הצצה לשיעור 5</a></li>
+      </ol>
+    </nav>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 1 — Opening & Refresher (cells 0–2)                           -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-1">
+      <div class="section-banner">
+        <h2>פרק 1 — פתיחה ורענון משיעור 03</h2>
+      </div>
+
+      <p>בשיעורים 1–3 עבדנו עם רגרסורים <b>מספריים בלבד</b> — שעות, אלפי שקלים, מספרי ציוד. כולם משתנים שיש להם משמעות כסקלה רציפה. היום אנחנו מוסיפים סוג חדש של רגרסור: <b>קטגוריאלי</b> — שם של מפעל, מין, סוג מכונה, יום בשבוע. מבחינה מתמטית, זאת בעיה: המודל הלינארי יודע לעבוד רק עם מספרים. <b>איך מכניסים את השמות פנימה?</b></p>
+
+      <div class="callout">
+        <h3>מאיפה אנחנו ממשיכים</h3>
+        <ol>
+          <li><b>עד עכשיו:</b> $\hat{Y} = b_0 + b_1 X_1 + b_2 X_2 + \ldots$ — כל ה-$X$-ים מספריים.</li>
+          <li><b>היום:</b> איך משלבים משתנה קטגוריאלי — <code class="ltr">Factory</code> $\in$ {Ariel, Haifa, Jerusalem} — בתוך אותו מבנה.</li>
+          <li><b>הסכנה החדשה:</b> שתי גישות פיתוי — אחת שעובדת מתמטית אבל שגויה במהותה, ואחת נכונה. נראה את שתיהן.</li>
+        </ol>
+      </div>
+
+      <p>הכלים מהשיעורים הקודמים — קריאת <code class="ltr">summary()</code>, פירוש "כשהשאר קבועים", VIF — כולם ממשיכים לעבוד גם עם דמיים. למעשה, נגלה ש-dummy trap הוא מקרה קיצון של multicollinearity שראינו בשיעור 03.</p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תאים 0–2</span> (כותרת + ייבוא ספריות).
+        </span>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 2 — Motivation: the Factory column (cells 3–4)                -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-2">
+      <div class="section-banner">
+        <h2>פרק 2 — מוטיבציה: השדה Factory</h2>
+      </div>
+
+      <div class="callout">
+        <h3>הסיפור (המשך משיעור 03)</h3>
+        <p>מנהל הבטיחות מסיים לטפל ב-multicollinearity ונשאר עם מודל מסודר על <code class="ltr">guidance</code> ו-<code class="ltr">investment</code>. הוא חוזר אל הדאטה ושם לב שעוד לא השתמש בעמודה אחת — <code class="ltr">Factory</code>: <b>אריאל, חיפה, ירושלים</b>. הוא שואל:</p>
+        <p style="margin:10px 0 0 0; padding:8px; border-right:3px solid #4a8; background:#f4faf6;"><i>"האם המפעל באמת משפיע על התאונות, מעבר להשפעה של ההדרכה והתקציב? האם יש 'משהו ייחודי' לכל מפעל — תרבות בטיחות, גיל הציוד, אקלים — שלא נתפס במשתנים המספריים?"</i></p>
+      </div>
+
+      <p>נטען את אותו דאטה של שיעור 03 ונסתכל על השדה <code class="ltr">Factory</code> שדילגנו עליו אז.</p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תא 4</span> (טעינת הדאטה + הצגת <code class="ltr">Factory</code>).
+        </span>
+      </div>
+
+      <div class="qa">
+        <div class="question">שאלה לכיתה: המודל הלינארי יודע לעבוד רק עם מספרים. איך מכניסים אליו "אריאל / חיפה / ירושלים"? תנו לי הצעות.</div>
+        <button class="toggle-btn">גלה תשובה</button>
+        <div class="answer">
+          <p>שתי גישות עיקריות:</p>
+          <ol style="margin:8px 0;">
+            <li><b>"להחליף שמות במספרים"</b> — אריאל $=0$, חיפה $=1$, ירושלים $=2$. עמודה אחת מספרית.</li>
+            <li><b>"לפתוח עמודה לכל מפעל"</b> — שלוש עמודות בינאריות, אחת לכל קטגוריה (One-Hot Encoding).</li>
+          </ol>
+          <p style="margin-top:8px;"><b>הראשונה נשמעת פשוטה יותר</b> — בפרק הבא נראה למה היא לא עובדת. השנייה היא הגישה הנכונה — נגיע אליה בפרק 4.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 3 — The naive way: Factory_num (cells 5–6)                    -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-3">
+      <div class="section-banner">
+        <h2>פרק 3 — הדרך הנאיבית: Factory_num</h2>
+      </div>
+
+      <p>הדאטה כבר מכיל עמודה כזאת — <code class="ltr">Factory_num</code>, עם המיפוי $\{\text{Ariel}: 0,\ \text{Haifa}: 1,\ \text{Jerusalem}: 2\}$. הפיתוי גדול: פשוט נכניס אותה כמו עוד עמודה מספרית.</p>
+
+      <div class="formula-box">
+        $\hat{Y} = b_0 + b_1\,\text{guidance} + b_2\,\text{investment} + b_3\,\text{Factory\_num}$
+      </div>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תא 6</span> (OLS עם <code class="ltr">Factory_num</code> כעמודה מספרית).
+        </span>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>מה ראינו ב-summary</h3>
+        <ol>
+          <li><b>הקוד רץ.</b> אין שגיאה. $R^2 = 0.988$ — נראה טוב.</li>
+          <li><b>המקדם של <code class="ltr">Factory_num</code>:</b> $\hat{b} = -0.21$, $\text{p} = 0.46$ — לכאורה לא מובהק.</li>
+          <li><b>המקדמים של <code class="ltr">guidance</code> ו-<code class="ltr">investment</code>:</b> כמעט זהים למודל בלי <code class="ltr">Factory_num</code> בכלל. כלומר העמודה "כמעט לא תורמת".</li>
+        </ol>
+        <p style="margin:8px 0 0 0;"><b>אבל לא בזה הבעיה.</b> נניח לרגע שהיה יוצא מובהק — היה אפשר להסתמך עליו? <b>לא.</b> הסיבה במהות, לא במספר.</p>
+      </div>
+
+      <div class="qa">
+        <div class="question">שאלה לכיתה: בדאטה כבר יש עמודה <code class="ltr">Factory_num</code> עם ערכים $\{\text{Ariel}: 0,\ \text{Haifa}: 1,\ \text{Jerusalem}: 2\}$. למה לא פשוט להשתמש בה?</div>
+        <button class="toggle-btn">גלה תשובה</button>
+        <div class="answer">
+          <p>המודל יפרש את העמודה כ<b>סקלה רציפה</b>. המקדם יאמר "כל יחידה של <code class="ltr">Factory_num</code> מוסיפה $\hat{b}$ לתאונות" — ופירוש זה כופה שתי הנחות שרירותיות:</p>
+          <ol style="margin:8px 0;">
+            <li><b>ההפרש מאריאל לחיפה זהה להפרש מחיפה לירושלים</b> (שניהם "צעד אחד" של $1$).</li>
+            <li><b>ההשפעה אורדינלית ואחידה</b> — ירושלים $=$ פי $2$ ההפרש מאריאל.</li>
+          </ol>
+          <p>שתי ההנחות שרירותיות. <b>שם של מקום אינו מיקום על סקלה.</b> אם נחליף את הקידוד ל-$\{\text{Jerusalem}: 0,\ \text{Ariel}: 1,\ \text{Haifa}: 2\}$ — נקבל מקדם אחר, $\text{p}$ אחר, ו-$R^2$ קצת אחר. <b>המודל תלוי בהקצאה השרירותית של מספרים.</b></p>
+        </div>
+      </div>
+
+      <div class="callout">
+        <h3>📊 העשרה: למה Factory_num נכשל גם כש-p קטן</h3>
+
+        <p>מבחן הקיום של מודל סטטיסטי הוא שיהיה <b>invariant לבחירות שרירותיות</b> של הקידוד. אם <b>תיוג מחדש</b> (re-labeling) של הקטגוריות משנה את התוצאה — התוצאה אינה משמעותית.</p>
+
+        <p style="margin-top:10px;"><b>דוגמה ויזואלית:</b> נניח $b_3 = -10$ עבור הקידוד $\{\text{Ariel}: 0,\ \text{Haifa}: 1,\ \text{Jerusalem}: 2\}$. המודל מנבא:</p>
+
+        <ul style="margin:8px 0;">
+          <li>אריאל: $\hat{Y} = b_0 + \ldots + (-10) \cdot 0 = b_0 + \ldots$</li>
+          <li>חיפה: $\hat{Y} = b_0 + \ldots + (-10) \cdot 1 = b_0 + \ldots - 10$</li>
+          <li>ירושלים: $\hat{Y} = b_0 + \ldots + (-10) \cdot 2 = b_0 + \ldots - 20$</li>
+        </ul>
+
+        <p style="margin-top:10px;"><b>ההנחה הסמויה של המודל:</b> חיפה ($=1$) מוסיפה $b_3$ לתחזית, ואילו ירושלים ($=2$) מוסיפה $2 b_3$. <b>המשמעות:</b> על פי המודל, ההשפעה של ירושלים על מספר התאונות גדולה פי שניים מההשפעה של חיפה — לא <i>בקירוב</i>, אלא <i>בדיוק</i>. <b>מהיכן הגיעה ההנחה הזו?</b> מהבחירה השרירותית שלנו לקודד את ירושלים כ-$2$ — ולא כ-$5$ או כ-$0.7$. שום דבר בדאטה אינו תומך בה.</p>
+
+        <p style="margin-top:10px;"><b>הפתרון</b> מחייב שיטת קידוד שאינה תלויה בסדר או במרחקים בין הקטגוריות, אלא מתייחסת לכל קטגוריה כיחידה עצמאית — ללא הנחה על סדר או על קרבה ביניהן. זה בדיוק מה ש-<b>One-Hot Encoding</b> מספק.</p>
+      </div>
+
+      <p>אז איך עושים את זה נכון?</p>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 4 — The right way: One-Hot Encoding (cells 7–8)               -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-4">
+      <div class="section-banner">
+        <h2>פרק 4 — הדרך הנכונה: One-Hot Encoding</h2>
+      </div>
+
+      <p><b>הרעיון:</b> במקום עמודה אחת מספרית עבור $k$ קטגוריות, פותחים $k$ עמודות בינאריות — כל עמודה מציינת "האם השורה הזאת שייכת לקטגוריה הזאת?" עם $1$ או $0$.</p>
+
+      <table style="margin:14px 0; border-collapse:collapse;">
+        <thead>
+          <tr style="background:#eaf6ff;">
+            <th style="padding:8px 16px; border:1px solid #aac; text-align:right;">מפעל</th>
+            <th style="padding:8px 16px; border:1px solid #aac;"><code class="ltr">Factory_Ariel</code></th>
+            <th style="padding:8px 16px; border:1px solid #aac;"><code class="ltr">Factory_Haifa</code></th>
+            <th style="padding:8px 16px; border:1px solid #aac;"><code class="ltr">Factory_Jerusalem</code></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="padding:8px 16px; border:1px solid #aac; text-align:right;"><b>אריאל</b></td>
+            <td style="padding:8px 16px; border:1px solid #aac; text-align:center; background:#eaf6ff;"><b>1</b></td>
+            <td style="padding:8px 16px; border:1px solid #aac; text-align:center;">0</td>
+            <td style="padding:8px 16px; border:1px solid #aac; text-align:center;">0</td>
+          </tr>
+          <tr>
+            <td style="padding:8px 16px; border:1px solid #aac; text-align:right;"><b>חיפה</b></td>
+            <td style="padding:8px 16px; border:1px solid #aac; text-align:center;">0</td>
+            <td style="padding:8px 16px; border:1px solid #aac; text-align:center; background:#eaf6ff;"><b>1</b></td>
+            <td style="padding:8px 16px; border:1px solid #aac; text-align:center;">0</td>
+          </tr>
+          <tr>
+            <td style="padding:8px 16px; border:1px solid #aac; text-align:right;"><b>ירושלים</b></td>
+            <td style="padding:8px 16px; border:1px solid #aac; text-align:center;">0</td>
+            <td style="padding:8px 16px; border:1px solid #aac; text-align:center;">0</td>
+            <td style="padding:8px 16px; border:1px solid #aac; text-align:center; background:#eaf6ff;"><b>1</b></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p><b>שינוי קטן וחשוב — drop_first.</b> מעמודה אחת מתוך ה-$k$ נצטרך להיפטר. אם נשאיר את כל $3$ העמודות, סכומן בכל שורה $= 1 = $ עמודת ה-<code class="ltr">intercept</code> — תלות לינארית מושלמת. נדבר על זה בפרק 6 בפירוט. בינתיים — <code class="ltr">drop_first=True</code> מסיר עמודה אחת.</p>
+
+      <p>הקטגוריה שמושמטת היא <b>baseline</b> — היא "מתחבאת" ב-<code class="ltr">intercept</code>. בברירת המחדל של pandas, ההשמטה אלפביתית — אז <b>אריאל</b> הופך ל-baseline, ונשארות <code class="ltr">Factory_Haifa</code> ו-<code class="ltr">Factory_Jerusalem</code>.</p>
+
+      <div class="callout">
+        <h3>הבהרה: One-Hot Encoding ו-Dummy Variables — מה ההבדל?</h3>
+
+        <p>שני המונחים קרובים מאוד אבל לא זהים. ההבדל היחיד: <b>כמה עמודות מקבלים בסוף</b>.</p>
+
+        <ul style="margin:8px 0;">
+          <li><b>One-Hot Encoding</b> — עמודה לכל קטגוריה ($k$ עמודות). בכל שורה יש בדיוק $1$ אחד (זה ש"חם") והשאר $0$. עבור $3$ מפעלים: $3$ עמודות.</li>
+          <li><b>Dummy Variables</b> — מוחקים עמודה אחת ($k-1$ עמודות). הקטגוריה שנמחקה הופכת ל-<b>baseline</b>, ומזוהה בשורות שבהן כל הדמיים $=0$. עבור $3$ מפעלים: $2$ עמודות.</li>
+        </ul>
+
+        <p style="margin-top:10px;"><b>ו-<code class="ltr">pd.get_dummies</code>?</b> זה שם של פונקציה ב-pandas — לא צורת קידוד נפרדת. הפונקציה יודעת לעשות את <b>שתי הצורות</b>, בהתאם לפרמטר <code class="ltr">drop_first</code>:</p>
+
+        <ul style="margin:6px 0;">
+          <li><code class="ltr">drop_first=False</code> (ברירת מחדל) <bdi dir="ltr">→</bdi> One-Hot ($k$ עמודות)</li>
+          <li><code class="ltr">drop_first=True</code> <bdi dir="ltr">→</bdi> Dummy ($k-1$ עמודות)</li>
+        </ul>
+
+        <p style="margin-top:10px;"><b>למה ברגרסיה לינארית בוחרים את הצורה השנייה?</b> כי $k$ העמודות יחד יוצרות תלות לינארית מושלמת עם ה-<code class="ltr">intercept</code> — בדיוק dummy trap שנפגוש בפרק 6. בקורסי ML אחרים (רשתות עצביות, עצי החלטה) משתמשים בדרך כלל ב-One-Hot טהור, כי המודלים שם לא רגישים לאותה בעיה.</p>
+      </div>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תא 8</span> (<code class="ltr">pd.get_dummies(drop_first=True)</code> + concat + OLS + summary).
+        </span>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>מה ראינו ב-summary</h3>
+        <ol>
+          <li><b>$R^2 = 0.988$</b> — כמעט זהה למודל בלי <code class="ltr">Factory</code>. הוספת המידע הקטגוריאלי לא הזיזה הרבה.</li>
+          <li><b><code class="ltr">guidance</code> ו-<code class="ltr">investment</code> יציבים מאוד.</b> $\hat{b}_{\text{guidance}} = -10.27$, $\hat{b}_{\text{investment}} = -2.00$ — בדיוק כמו במודל המצומצם של שיעור 03. זה מצוין: הוספת הדמיים לא ערערה אותם.</li>
+          <li><b><code class="ltr">Factory_Haifa</code>:</b> $\hat{b} = +0.34$, $\text{p} = 0.54$ — לא מובהק.</li>
+          <li><b><code class="ltr">Factory_Jerusalem</code>:</b> $\hat{b} = -0.43$, $\text{p} = 0.44$ — גם לא מובהק.</li>
+        </ol>
+      </div>
+
+      <div class="qa">
+        <div class="question">שאלה לכיתה: המודל מציג: <code class="ltr">Factory_Haifa</code> $= +0.34$. מה זה אומר?</div>
+        <button class="toggle-btn">גלה תשובה</button>
+        <div class="answer">
+          <p>בממוצע, <b>חיפה מוסיפה $0.34$ תאונות לרבעון לעומת אריאל</b> (ה-baseline) — <b>כשכל יתר המשתנים קבועים</b>.</p>
+          <p style="margin-top:8px;">הסיומת "כשהשאר קבועים" אינה קישוט — היא מהות הפירוש (חזרה על הלקח משיעור 03). אם נמדוד את ההפרש בין חיפה לאריאל בלי לפקח על <code class="ltr">guidance</code> ו-<code class="ltr">investment</code>, נקבל ערך אחר — כי בכל מפעל ההדרכה והתקציב יכולים להיות שונים.</p>
+          <p style="margin-top:8px;"><b>הצורה המתמטית:</b> $b_0$ (intercept) הוא הערך הבסיסי לאריאל. עבור חיפה: $b_0 + b_{\text{Haifa}} = b_0 + 0.34$. עבור ירושלים: $b_0 + b_{\text{Jerusalem}} = b_0 - 0.43$. כל מפעל מקבל "תוספת" משלו, יחסית לאריאל.</p>
+        </div>
+      </div>
+
+      <p>המקדמים של הדמיים יצאו לא מובהקים — נחזור לשאלה הזו בפרק 7. אבל קודם, נבין <b>מה בעצם הדמיים עושים גיאומטרית</b>.</p>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 5 — Geometry: 3 parallel lines (cells 9–10)                   -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-5">
+      <div class="section-banner">
+        <h2>פרק 5 — גיאומטריה: 3 קווים מקבילים</h2>
+      </div>
+
+      <p>הדרך הכי טובה לראות מה דמיים עושים — לשרטט. אנחנו מציירים <b>שני גרפים זה לצד זה</b>: בשמאל — scatter מלא של <code class="ltr">accidents</code> מול <code class="ltr">guidance</code>, צבוע לפי מפעל, עם 3 קווי רגרסיה. בימין — zoom חזק על אזור צר סביב <code class="ltr">guidance = 2</code>, רק 3 הקווים ללא הנקודות, כדי שההזחות בין הקווים יהיו נראות לעין.</p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תא 10</span> (2-panel: גרף מלא + zoom על 3 הקווים).
+        </span>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>מה ראינו בגרף</h3>
+        <ul>
+          <li><b>בפאנל השמאלי (גרף מלא):</b> 3 קבוצות נקודות צבועות לפי מפעל, ועליהן 3 קווי רגרסיה. בקנה המידה הזה — <b>הקווים נראים כמעט זהים</b>. הסיבה: הזחות של $0.34$ ו-$0.43$ הן זניחות ביחס לטווח הציר ($\sim 80$ יחידות).</li>
+          <li><b>בפאנל הימני (zoom):</b> ללא הנקודות, רק 3 הקווים, על טווח $y$ צר. <b>עכשיו רואים את ההזחות לעין</b> — אריאל באמצע, חיפה מעט מעליו ($+0.34$), ירושלים מעט מתחתיו ($-0.43$).</li>
+          <li><b>הקווים <i>מקבילים</i>.</b> אותו שיפוע על <code class="ltr">guidance</code> ($-10.27$) — השיפוע אינו תלוי במפעל. ההבדל בין הקווים הוא ב-<code class="ltr">intercept</code> בלבד.</li>
+        </ul>
+        <p style="margin:8px 0 0 0;"><b>ההבדלים האנכיים האלה הם בדיוק המקדמים של הדמיים.</b> זה כל הסיפור הגיאומטרי. <b>הזחות קטנות בדאטה הזה</b> רומזות ש-<code class="ltr">Factory</code> לא נושא הרבה מידע מעבר ל-<code class="ltr">guidance</code> ו-<code class="ltr">investment</code> — נראה את זה פורמלית בפרק 7 עם F-test משותף.</p>
+      </div>
+
+      <div class="callout">
+        <h3>📊 העשרה: גיאומטריית הדמיים — קווים מקבילים</h3>
+
+        <p>במודל $\hat{Y} = b_0 + b_1\,\text{guidance} + b_2\,\text{investment} + b_3\,D_{\text{Haifa}} + b_4\,D_{\text{Jerusalem}}$, כל מפעל מקבל <b>קו רגרסיה משלו</b> במישור $(\text{guidance}, Y)$ — אבל כולם <b>מקבילים</b>.</p>
+
+        <p style="margin-top:10px;"><b>למה מקבילים?</b> כי השיפוע על <code class="ltr">guidance</code> הוא $b_1$ — בלי קשר למפעל. הדמיים משפיעים רק על ה-<code class="ltr">intercept</code>, לא על השיפוע. נקבע <code class="ltr">investment</code> לערך ממוצע ונקבל:</p>
+
+        <div class="formula-box" style="font-size:17px;">
+          אריאל:&nbsp;&nbsp;&nbsp;&nbsp; $\hat{Y} = (b_0 + b_2 \bar{X}_2) + b_1 \cdot \text{guidance}$<br>
+          חיפה:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; $\hat{Y} = (b_0 + b_2 \bar{X}_2 + b_3) + b_1 \cdot \text{guidance}$<br>
+          ירושלים: $\hat{Y} = (b_0 + b_2 \bar{X}_2 + b_4) + b_1 \cdot \text{guidance}$
+        </div>
+
+        <p style="margin-top:10px;">שלוש משוואות, אותו $b_1$, intercepts שונים. <b>גרפית — קווים מקבילים, מוזחים אנכית.</b></p>
+
+        <p style="margin-top:10px;"><b>למה מקבילים, ולא חופשיים?</b> כי המודל מניח שההשפעה של <code class="ltr">guidance</code> על תאונות <b>זהה בכל מפעל</b>. אם נרצה שהשיפוע גם ישתנה פר מפעל — "הדרכה אפקטיבית יותר באריאל מאשר בירושלים" — נצטרך <b>אינטראקציה</b> (מכפלה של $\text{guidance} \times D_{\text{Haifa}}$). על זה נדבר בשיעור 06.</p>
+      </div>
+
+      <p>עכשיו, אחרי שיש לנו את האינטואיציה — נחזור לשאלה הקודמת: מה היה קורה אם <i>לא</i> היינו מסירים אחת מהקטגוריות?</p>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 6 — Dummy Trap (cells 11–12)                                  -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-6">
+      <div class="section-banner">
+        <h2>פרק 6 — Dummy Trap</h2>
+      </div>
+
+      <p>נחזור לרגע אחורה. אמרנו ש-<code class="ltr">drop_first=True</code> מסיר עמודה אחת — והקטגוריה שמושמטת הופכת ל-baseline. מה היה קורה אילו השארנו את כל $3$ הדמיים?</p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תא 12</span> (<code class="ltr">drop_first=False</code> + הרצת המודל המלא).
+        </span>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>מה ראינו ב-summary</h3>
+        <ol>
+          <li><b>statsmodels לא זרק שגיאה.</b> זאת ההפתעה הראשונה. סטודנטים מצפים לקרוס. במקום זה — קיבלנו summary "סביר".</li>
+          <li><b>אבל המספרים שונים.</b> ה-<code class="ltr">const</code> ירד מ-$350.6$ ל-$262.9$. ולכל קטגוריה יש מקדם של $\approx 87.6$. סכום: $262.9 + 87.6 \approx 350.6$ — אותו intercept כמו במודל הנכון, רק <b>פוצל באופן שרירותי</b> בין $4$ עמודות.</li>
+          <li><b>$R^2$ זהה</b> ($0.988$). החיזויים זהים. אבל הפירוש של מקדמים בודדים — נשבר.</li>
+          <li><b>הסימן הברור: $\text{rank}(X) = 5$, $\text{columns} = 6$.</b> מטריצת ה-$X$ <b>אינה בעלת דרגה מלאה</b>. יש לנו $6$ עמודות אבל רק $5$ מהן עצמאיות. העמודה השישית = שילוב לינארי של אחרות. <b>זה בדיוק dummy trap.</b></li>
+        </ol>
+      </div>
+
+      <div class="callout">
+        <h3>📊 העשרה: Dummy Trap = multicollinearity מושלם</h3>
+
+        <p>נסתכל על סכום $3$ הדמיים בכל שורה: $D_{\text{Ariel}} + D_{\text{Haifa}} + D_{\text{Jerusalem}}$. כל שורה בדאטה משתייכת לבדיוק קטגוריה אחת — אז שתיים מהדמיים הן $0$ ואחת היא $1$. <b>הסכום תמיד $= 1$.</b></p>
+
+        <div class="formula-box">
+          $D_{\text{Ariel}} + D_{\text{Haifa}} + D_{\text{Jerusalem}} = 1 = \text{intercept}$ &nbsp; (בכל שורה)
+        </div>
+
+        <p style="margin-top:10px;">כלומר <b>אחת העמודות שווה בדיוק לסכום של אחרות</b> — זאת תלות לינארית מושלמת. הקיצון של multicollinearity שראינו בשיעור 03 (שם הייתה תלות חלקית, $\text{VIF} \approx 247$).</p>
+
+        <h4 style="margin-top:14px;">ולמה זאת בעיה למודל?</h4>
+
+        <p>המודל מחפש את ערכי המקדמים שמסבירים הכי טוב את הדאטה. כשעמודה אחת = סכום של אחרות, <b>אין פתרון יחיד</b> — יש אינסוף שילובים של מקדמים שמובילים בדיוק לאותן תחזיות. הכי קל לראות עם דוגמה מספרית.</p>
+
+        <p style="margin-top:10px;"><b>דוגמה.</b> נתעלם רגע מ-<code class="ltr">guidance</code> ו-<code class="ltr">investment</code> כדי לפשט. נניח שהמודל הצליח להגיע לערכי המקדמים הבאים:</p>
+
+        <div class="formula-box" style="font-size:16px;">
+          <b>אפשרות א':</b> &nbsp; $b_0 = 350$, &nbsp; $b_{\text{Ariel}} = 0$, &nbsp; $b_{\text{Haifa}} = 1$, &nbsp; $b_{\text{Jerusalem}} = -0.5$
+        </div>
+
+        <p style="margin-top:10px;">עכשיו נחסיר $5$ מכל אחד ממקדמי הדמיים, ונוסיף $5$ ל-intercept:</p>
+
+        <div class="formula-box" style="font-size:16px;">
+          <b>אפשרות ב':</b> &nbsp; $b_0 = 355$, &nbsp; $b_{\text{Ariel}} = -5$, &nbsp; $b_{\text{Haifa}} = -4$, &nbsp; $b_{\text{Jerusalem}} = -5.5$
+        </div>
+
+        <p style="margin-top:10px;"><b>שתי האפשרויות נותנות אותן תחזיות בדיוק.</b> בדיקה עבור מפעל באריאל ($D_{\text{Ariel}} = 1$, השאר $0$):</p>
+        <ul style="margin:6px 0;">
+          <li>אפשרות א': $\hat{Y} = 350 + 0 = 350$</li>
+          <li>אפשרות ב': $\hat{Y} = 355 + (-5) = 350$</li>
+        </ul>
+        <p style="margin-top:6px;">זהה. וזה עובד עם <i>כל</i> מספר שנחסיר ונוסיף — אינסוף אפשרויות שונות, כולן נותנות אותן תחזיות. <b>למודל אין דרך לבחור איזו אפשרות "הנכונה".</b></p>
+
+        <p style="margin-top:10px;"><b>בפועל <code class="ltr">statsmodels</code> כן יחזיר ערכים</b> — הוא לא קורס — אבל מה שהוא מחזיר הוא רק <i>אחד</i> מהאינסוף השילובים האפשריים, שנבחר שרירותית. ראינו את זה בתא 12: ה-<code class="ltr">const</code> ירד מ-$350.6$ ל-$262.9$, וכל קטגוריה קיבלה $\sim 87.6$. <b>החיזויים נכונים, אבל הפירוש של כל מקדם בנפרד נשבר</b> — אי אפשר לטעון "המקדם של חיפה הוא $87.6$" כי המקדם הזה נבחר שרירותית, ועם בחירה אחרת הוא היה ערך אחר לחלוטין.</p>
+
+        <p style="margin-top:10px;"><b>הפתרון: <code class="ltr">drop_first=True</code>.</b> זורקים עמודה אחת מתוך השלוש. עכשיו נשארות רק $2$ דמיים, וסכומן <i>אינו תמיד</i> $1$ — אם השורה משתייכת לקטגוריה שהורדנו (אריאל ב-baseline), שני הדמיים $= 0$. נשבר הקשר "סכום הדמיים = intercept", המודל מקבל פתרון יחיד, והמקדמים מתפרשים כ<b>הפרשים יחסית ל-baseline</b>.</p>
+      </div>
+
+      <p>עכשיו לשאלת המפתח: שני המקדמים של הדמיים יצאו <b>לא מובהקים</b>. האם זה אומר ש-<code class="ltr">Factory</code> בכלל לא רלוונטי?</p>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 7 — Joint F-test (cells 13–14)                                -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-7">
+      <div class="section-banner">
+        <h2>פרק 7 — F-test משותף</h2>
+      </div>
+
+      <p><b>במבט ראשון</b>, נדמה שאפשר להסיק ישירות מה-summary: $\text{p}_{\text{Haifa}} = 0.54$ ו-$\text{p}_{\text{Jerusalem}} = 0.44$ — שניהם לא מובהקים — לכן <code class="ltr">Factory</code> לא רלוונטי וניתן לזרוק אותו. <b>אבל זאת מסקנה לא מבוססת.</b></p>
+
+      <div class="callout">
+        <h3>למה $t$-tests בודדים לא מספיקים</h3>
+        <p>כל $t$-test בודק השערה אחת: $H_0: \beta_j = 0$ עבור משתנה אחד ספציפי. ל-<code class="ltr">Factory</code> יש $2$ דמיים — אז יש $2$ בדיקות נפרדות. <b>לכל אחת השערה אחרת.</b></p>
+        <p style="margin-top:10px;"><b>השאלה האמיתית שונה:</b> לא "האם <code class="ltr">Factory_Haifa</code> מובהק?", ולא "האם <code class="ltr">Factory_Jerusalem</code> מובהק?", אלא <b>"האם שני הדמיים יחד תורמים?"</b> זאת השערה משותפת:</p>
+        <div class="formula-box">
+          $H_0: \beta_{\text{Haifa}} = \beta_{\text{Jerusalem}} = 0$ &nbsp; (במקביל)
+        </div>
+        <p style="margin-top:10px;">המבחן הסטטיסטי המתאים: <b>F-test משותף</b>.</p>
+      </div>
+
+      <p><b>איך עושים את זה:</b> משווים בין שני מודלים מקוננים — מלא (עם הדמיים) ומצומצם (בלעדיהם). אם הדמיים תורמים, $R^2$ של המלא צריך להיות גבוה <i>משמעותית</i>. F-test בודק את זה פורמלית.</p>
+
+      <div class="formula-box">
+        $F = \dfrac{(\text{RSS}_{\text{reduced}} - \text{RSS}_{\text{full}}) / q}{\text{RSS}_{\text{full}} / (n - p)}$
+      </div>
+
+      <p style="margin-top:10px;"><b>מה זה $\text{RSS}$?</b> $\text{RSS}$ (<b>Residual Sum of Squares</b>) הוא <b>סך השגיאות של המודל</b>: לכל תצפית מחשבים את ההפרש בין הערך האמיתי לחיזוי של המודל, מעלים בריבוע, ומסכמים על כל התצפיות. $\text{RSS}$ קטן <bdi dir="ltr">⇒</bdi> המודל קולע. $\text{RSS}$ גדול <bdi dir="ltr">⇒</bdi> מפספס.</p>
+
+      <div class="formula-box">
+        $\text{RSS} = \sum_{i=1}^{n} (y_i - \hat{y}_i)^2$
+      </div>
+
+      <ul style="margin:10px 0;">
+        <li><b>$\text{RSS}_{\text{full}}$</b> = השגיאה הכוללת של המודל <b>עם הדמיים</b> (<code class="ltr">Factory_Haifa</code> ו-<code class="ltr">Factory_Jerusalem</code> נכללים).</li>
+        <li><b>$\text{RSS}_{\text{reduced}}$</b> = השגיאה הכוללת של המודל <b>בלי הדמיים</b> (רק <code class="ltr">guidance</code> ו-<code class="ltr">investment</code>).</li>
+      </ul>
+
+      <p style="margin-top:10px;">למודל המלא יש יותר עמודות, אז $\text{RSS}_{\text{full}} \leq \text{RSS}_{\text{reduced}}$ <i>תמיד</i> — השאלה היא <b>כמה</b> השגיאה ירדה, והאם הירידה הזאת משמעותית או רק "רעש" שמתקבל מעצם תוספת הפרמטרים.</p>
+
+      <p style="margin-top:10px;"><b>קריאת הנוסחה:</b> ה<b>מונה</b> $\text{RSS}_{\text{reduced}} - \text{RSS}_{\text{full}}$ הוא <i>גודל הירידה</i> בשגיאה — כמה הדמיים שיפרו את ההתאמה. ה<b>מכנה</b> הוא נורמליזציה — "השגיאה הממוצעת לתצפית" של המודל המלא, שמשמשת כסקייל של "רעש טבעי". $F$ גדול <bdi dir="ltr">⇒</bdi> הירידה בשגיאה משמעותית ביחס לרעש <bdi dir="ltr">⇒</bdi> דוחים את $H_0$ <bdi dir="ltr">⇒</bdi> הדמיים תורמים.</p>
+
+      <p style="font-size:16px; margin-top:10px;">$q$ = מספר ההגבלות (במקרה שלנו $2$ — שני דמיים שאמורים להיות $0$). $n$ = מספר התצפיות. $p$ = מספר הפרמטרים במודל המלא.</p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תא 14</span> (<code class="ltr">model.compare_f_test(model_reduced)</code>).
+        </span>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>מה ראינו ב-output</h3>
+        <ul>
+          <li><b>$F = 0.92$</b></li>
+          <li><b>$\text{p} = 0.40$</b></li>
+          <li><b>$\text{df}_{\text{diff}} = 2$</b> (מספר הדמיים שנבדקו במשותף)</li>
+        </ul>
+
+        <h4 style="margin-top:14px;">פירוש המספרים במילים</h4>
+
+        <ul style="margin:8px 0;">
+          <li><b>$F = 0.92$</b> — נזכיר: המונה הוא "כמה ירדה השגיאה בזכות הדמיים", המכנה הוא "השגיאה הממוצעת לתצפית" (רעש טבעי). $F \approx 1$ אומר ש<b>הירידה בשגיאה דומה בגודלה לרעש</b> — הדמיים לא הקטינו את השגיאה מעבר למה שהיינו מצפים מתוספת אקראית של $2$ פרמטרים. אם הדמיים היו תורמים מידע אמיתי, היינו מצפים ל-$F$ גדול בהרבה (כסדר גודל $3$ ומעלה לדרגות החופש שלנו).</li>
+
+          <li><b>$\text{p} = 0.40$</b> — ההסתברות לקבל $F \geq 0.92$ <i>אילו $H_0$ הייתה נכונה</i> (כלומר: גם אם <code class="ltr">Factory</code> באמת לא משפיע). $40\%$ זאת תוצאה מאוד שגרתית בעולם שבו הדמיים לא תורמים — אין שום סימן יוצא דופן בדאטה שמצדיק דחייה. הסף המקובל הוא $\text{p} < 0.05$; אנחנו רחוקים מאוד ממנו.</li>
+
+          <li><b>$\text{df}_{\text{diff}} = 2$</b> — בודקים $2$ הגבלות בו-זמנית: $\beta_{\text{Haifa}} = 0$ <i>וגם</i> $\beta_{\text{Jerusalem}} = 0$. ערך זה קובע איזה ערכי $F$ נחשבים "גדולים" — יותר הגבלות נבדקות, $F$ צריך להיות גדול יותר כדי להיות מובהק.</li>
+        </ul>
+
+        <h4 style="margin-top:14px;">המסקנה במילים</h4>
+
+        <p><b>לא דוחים את $H_0$.</b> $2$ הדמיים יחד אינם תורמים מובהקות. במונחי הסיפור: אחרי שמחשיבים <code class="ltr">guidance</code> ו-<code class="ltr">investment</code>, <b>זהות המפעל לא מוסיפה מידע</b> שעוזר לחזות את התאונות. בדאטה הזה אין "אפקט מפעל ייחודי" — תרבות בטיחות, גיל ציוד, אקלים — שלא נתפס כבר במשתנים המספריים.</p>
+      </div>
+
+      <div class="qa">
+        <div class="question">שאלה לכיתה: גם <code class="ltr">Factory_Haifa</code> וגם <code class="ltr">Factory_Jerusalem</code> יצאו לא מובהקים בנפרד ($\text{p} = 0.54$ ו-$\text{p} = 0.44$). האם זה אומר ש-<code class="ltr">Factory</code> לא רלוונטי?</div>
+        <button class="toggle-btn">גלה תשובה</button>
+        <div class="answer">
+          <p><b>לא בהכרח.</b> מקדמים בודדים בודקים השערה אחת. כדי לדעת אם <b><code class="ltr">Factory</code> כקבוצה</b> תורם, מבצעים F-test משותף שבודק $\beta_{\text{Haifa}} = \beta_{\text{Jerusalem}} = 0$ ביחד.</p>
+          <p style="margin-top:8px;"><b>שתי תוצאות אפשריות:</b></p>
+          <ul style="margin:6px 0;">
+            <li><b>המקדמים לא מובהקים בנפרד אבל יחד כן</b> — קורה כשהדמיים מתואמים זה עם זה (ולכן ה-SE שלהם מנופחים) אבל יש להם תרומה משותפת.</li>
+            <li><b>המקדמים לא מובהקים בנפרד וגם יחד</b> — מה שראינו כאן. בדאטה הזה, אחרי שמחשיבים <code class="ltr">guidance</code> ו-<code class="ltr">investment</code>, אין הוכחה ש"זהות המפעל" מוסיפה.</li>
+          </ul>
+          <p style="margin-top:8px;"><b>המסקנה למנהל הבטיחות:</b> בדאטה הזה, "המפעל עצמו" לא נושא מידע ייחודי שלא נתפס במשתנים האחרים. <b>זאת תשובה לגיטימית.</b> הדמיים נתנו לנו את הכלי לבדוק — והתשובה היא "לא".</p>
+        </div>
+      </div>
+
+      <h3 style="margin-top:24px;">בחירת ה-baseline — האם זה משנה?</h3>
+
+      <p>שאלה אחרונה לפני סיום: בחרנו את <b>אריאל</b> כ-baseline (אלפביתית). מה היה קורה אם היינו בוחרים את חיפה במקום? או את ירושלים?</p>
+
+      <div class="callout">
+        <h3>מה משתנה — ומה לא</h3>
+        <ul>
+          <li><b>מה שלא משתנה:</b> $R^2$, החיזויים $\hat{Y}$, F-test משותף, AIC/BIC. כל המודל מבחינה כללית.</li>
+          <li><b>מה שכן משתנה:</b> הפירוש היחסי של מקדמי הדמיים. אם נחליף את ה-baseline ל-<b>חיפה</b>, נקבל <code class="ltr">Factory_Ariel</code> $= -0.34$ (היפוך סימן: עכשיו אריאל מתואר ביחס לחיפה) ו-<code class="ltr">Factory_Jerusalem</code> $= -0.77$ (ירושלים ביחס לחיפה במקום ביחס לאריאל).</li>
+        </ul>
+        <p style="margin:8px 0 0 0;"><b>בחירת ה-baseline היא בעיקר עניין נרטיבי.</b> מה הקטגוריה שאתה רוצה שהאחרים יושוו אליה? בדרך כלל הבחירה תהיה: (א) הקטגוריה הנפוצה ביותר, או (ב) הקטגוריה ה"רגילה" בהקשר, או (ג) הקטגוריה שמתאימה לסיפור שאתה מספר.</p>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 8 — Closing & exercise (cells 15–17)                          -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-8">
+      <div class="section-banner">
+        <h2>פרק 8 — סגירה ותרגיל</h2>
+      </div>
+
+      <p>סיכום זריז של מה שלקחנו היום:</p>
+
+      <div class="callout callout--accent">
+        <h3>3 נקודות לקחת הביתה</h3>
+        <ol>
+          <li><b>קטגוריאלי לא הולך כמספר.</b> הכנסת <code class="ltr">Factory_num</code> כעמודה אחת כופה הנחה אורדינלית שרירותית. מבחן הקיום: התוצאה לא יכולה להיות תלויה בבחירת המספרים.</li>
+          <li><b>דמיים = הפרשי intercept מ-baseline, "כשהשאר קבועים".</b> $k$ קטגוריות $\to$ $k-1$ דמיים בינאריים. הקטגוריה שמושמטת מתחבאת ב-<code class="ltr">intercept</code>. גרפית: קווי רגרסיה מקבילים, מוזחים אנכית.</li>
+          <li><b>Dummy trap = MC מושלם, F-test משותף הוא הכלי הנכון.</b> אם משאירים את כל $k$ הדמיים — סכומם $= 1 = $ <code class="ltr">intercept</code>, סינגולריות. כדי לבדוק אם <i>הקבוצה כולה</i> תורמת, משתמשים ב-F-test משותף, לא ב-$t$-tests בודדים.</li>
+        </ol>
+      </div>
+
+      <p><b>תרגיל קצר לכיתה:</b> חזו ידנית את מספר התאונות הצפוי למפעל <b>בירושלים</b> עם <code class="ltr">guidance = 3</code> ו-<code class="ltr">investment = 20</code>, על בסיס המקדמים מ-<code class="ltr">model.summary()</code>. <b>בדיקה:</b> השוו ל-<code class="ltr">model.predict()</code> עם הוקטור $[1, 3, 20, 0, 1]$ — שימו לב למבנה: $1$ ב-<code class="ltr">intercept</code>, $3$ ל-<code class="ltr">guidance</code>, $20$ ל-<code class="ltr">investment</code>, $0$ ל-<code class="ltr">Factory_Haifa</code> (כי לא חיפה), $1$ ל-<code class="ltr">Factory_Jerusalem</code> (כי כן ירושלים).</p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תאים 16–17</span> (<code class="ltr">Write your answer here</code> + תא קוד ריק).
+        </span>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- SUMMARY                                                             -->
+    <!-- ================================================================== -->
+    <section class="block" id="summary">
+      <div class="section-banner">
+        <h2>סיכום + הצצה לשיעור 5</h2>
+      </div>
+
+      <div class="callout">
+        <h3>5 נקודות לזכור</h3>
+        <ol>
+          <li><b>קידוד אורדינלי לקטגוריות נומינליות הוא טעות מהותית</b> — לא טעות במספרים, אלא בהנחת המודל על המבנה של הקטגוריות.</li>
+          <li><b>One-Hot Encoding עם <code class="ltr">drop_first=True</code></b> הוא הפתרון הסטנדרטי. הקטגוריה שמושמטת = baseline.</li>
+          <li><b>פירוש מקדם של דמי</b>: הפרש ממוצע ב-$Y$ מה-baseline, "כשהשאר קבועים". זוהי הרחבה ישירה של פירוש המקדם משיעור 03.</li>
+          <li><b>גיאומטריה</b>: דמיים = קווי רגרסיה מקבילים, אחד לכל קטגוריה. שיפועים שונים פר קטגוריה ידרשו אינטראקציה (שיעור 06).</li>
+          <li><b>F-test משותף</b> הוא הכלי הנכון לבדוק אם <i>קבוצת דמיים</i> תורמת — לא $t$-tests בודדים.</li>
+        </ol>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>בשיעור הבא — Polynomial + Parameter Selection</h3>
+        <p>עד עכשיו ראינו רק קשרים <b>לינאריים</b> בין $X$ ל-$Y$. מה אם הקשר באמת לא ישר? <b>שעות הדרכה ראשונות</b> מורידות תאונות הרבה — אבל אחרי הרבה שעות, התרומה השולית פוחתת. זה דורש מודל פולינומיאלי. ובאיזו דרגה לעצור — ריבועי? קוביה? יותר? נפגוש כלים פורמליים לבחירת מודל: AIC, BIC, ו-stepwise selection. זה בשיעור הבא.</p>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="lesson-footer">
+    Regression Course — Lesson 04 · TA: Raz Elbaz · עודכן: 2026-04-29
+  </footer>
+
+  <script src="shared/interactivity.js"></script>
+</body>
+</html>
