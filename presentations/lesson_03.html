@@ -1,0 +1,660 @@
+<!doctype html>
+<!--
+  Lesson 03 — Multivariate Regression
+  Aligned with: lesson_plans/lesson_03.md (8 blocks + summary + extended deep-dive)
+  Notebook anchor: regression-course/lesson3/lesson_3_lin_reg_tirgul.ipynb (20 cells)
+-->
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=1920, initial-scale=1">
+  <title>Lesson 03 — Multivariate Regression</title>
+
+  <link rel="stylesheet" href="shared/palette.css">
+  <link rel="stylesheet" href="shared/components.css">
+  <link rel="stylesheet" href="shared/styles.css">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+          onload="renderMathInElement(document.body, {delimiters: [{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}]});"></script>
+</head>
+
+<body>
+
+  <header class="lesson-nav">
+    <a href="lesson_02.html"><bdi dir="ltr">←</bdi> השיעור הקודם: Transformations</a>
+    <span class="lesson-name">Lesson 03 — Multivariate Regression</span>
+    <a href="lesson_04.html">השיעור הבא: Dummy Variables <bdi dir="ltr">→</bdi></a>
+  </header>
+
+  <main>
+
+    <div class="lesson-title-banner">
+      <h1>Regression Course — Lesson 03</h1>
+      <div class="subtitle">Multivariate Regression — מה קורה עם כמה משתנים מסבירים</div>
+      <span class="pill">חטיבה: Linear (3/6)</span>
+    </div>
+
+    <div class="prev-reminder">
+      <strong>תזכורת מהשיעור הקודם:</strong> ראינו ש-$R^2$ גבוה אינו ערובה — מודל יכול להחזיר $0.98$ אבל להחמיץ עקמומיות בנתונים. הצמד הקבוע $\,$ residuals + QQ-plot $\,$ הוא הכלי שבודק האם המבנה של המודל באמת מתאים לדאטה. כשהוא מצביע על בעיה — טרנספורמציה על $Y$ פותרת.
+    </div>
+
+    <nav class="toc">
+      <h2>תוכן עניינים</h2>
+      <ol>
+        <li><a href="#block-1">פרק 1 — פתיחה ורענון</a></li>
+        <li><a href="#block-2">פרק 2 — סיפור מנהל הבטיחות</a></li>
+        <li><a href="#block-3">פרק 3 — מודל מרובה משתנים</a></li>
+        <li><a href="#block-4">פרק 4 — מולטיקוליניאריות בעין: correlation</a></li>
+        <li><a href="#block-5">פרק 5 — VIF</a></li>
+        <li><a href="#block-6">פרק 6 — Drop ולהשוות לפני/אחרי</a></li>
+        <li><a href="#block-7">פרק 7 — חיזוי vs. הסקה</a></li>
+        <li><a href="#block-8">פרק 8 — סגירה ותרגיל</a></li>
+        <li><a href="#summary">סיכום + הצצה לשיעור 4</a></li>
+        <li><a href="#deep-dive">📖 מבט מורחב — מתי multicollinearity באמת בעיה? (לקריאה בבית)</a></li>
+      </ol>
+    </nav>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 1 — Opening & Refresher (cells 0–2)                           -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-1">
+      <div class="section-banner">
+        <h2>פרק 1 — פתיחה ורענון</h2>
+      </div>
+
+      <p>בשיעורים 1–2 עבדנו עם משתנה מסביר אחד. היום אנחנו מוסיפים עוד משתנים — וזה פותח שני דברים: <b>יכולת חדשה</b> (לפרק את ההשפעה של כל משתנה בנפרד), ו<b>בעיה חדשה</b> (משתנים שתלויים זה בזה מבלבלים את המודל). נראה את שתיהן.</p>
+
+      <div class="callout">
+        <h3>מאיפה אנחנו ממשיכים</h3>
+        <ol>
+          <li><b>עד עכשיו:</b> $\hat{Y} = b_0 + b_1 X$ — קו אחד, משתנה אחד.</li>
+          <li><b>היום:</b> $\hat{Y} = b_0 + b_1 X_1 + b_2 X_2 + \ldots + b_k X_k$ — מישור או היפר-מישור, כמה משתנים בו-זמנית.</li>
+          <li><b>הבעיה החדשה:</b> כשמשתנים מתואמים זה בזה, המודל מתקשה להפריד בין התרומות שלהם — וזה פוגע בפרשנות המקדמים.</li>
+        </ol>
+      </div>
+
+      <p>הכלים מהשיעורים הקודמים — קריאת <code class="ltr">summary()</code>, residuals, QQ — ממשיכים לעבוד כאן. נשתמש בהם בקיצור היום וכל הקורס.</p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תאים 0–2</span> (כותרת + ייבוא ספריות, כולל <code class="ltr">variance_inflation_factor</code>).
+        </span>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 2 — Safety manager story (cells 3–5)                          -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-2">
+      <div class="section-banner">
+        <h2>פרק 2 — סיפור מנהל הבטיחות</h2>
+      </div>
+
+      <div class="callout">
+        <h3>הסיפור</h3>
+        <p>מנהל בטיחות חדש מתחיל לעבוד ברשת מפעלים. הוא רוצה להבין מה משפיע על מספר התאונות. יש לו דאטה של $125$ מדידות — כל שורה היא רבעון של מפעל. הוא בוחר $5$ משתנים שכולם נשמעים רלוונטיים לבטיחות:</p>
+        <ul style="margin:8px 0;">
+          <li><b><code class="ltr">guidance</code></b> — שעות הדרכת בטיחות לעובד.</li>
+          <li><b><code class="ltr">investment</code></b> — תקציב בטיחות (אלפי ש"ח).</li>
+          <li><b><code class="ltr">training_hours</code></b> — סך שעות הדרכה כוללות במפעל.</li>
+          <li><b><code class="ltr">equipment_count</code></b> — מספר פריטי ציוד מגן זמינים.</li>
+          <li><b><code class="ltr">inspection_count</code></b> — מספר ביקורות פנים שנערכו ברבעון.</li>
+        </ul>
+        <p style="margin:8px 0 0 0;">הוא מכניס את כולם למודל — כי <b>כולם בטיחות</b>, לא?</p>
+      </div>
+
+      <div class="qa">
+        <div class="question">שאלה לכיתה: לפני שאנחנו מריצים — מה תצפו לראות במקדמים? איזה מהם יהיו מובהקים?</div>
+      </div>
+
+      <p>נטען את הדאטה משיעור ההרצאה ($2$ משתנים מקוריים) ונייצר את ה-$3$ הנוספים בקוד — בעולם האמיתי המנהל היה מקבל את כל ה-$5$ מתוך מערכת המידע, מוכנים.</p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תאים 4–5</span> (טעינת הדאטה + יצירת $3$ המשתנים הנוספים).
+        </span>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 3 — Multivariate model + interpretation (cells 6–7)           -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-3">
+      <div class="section-banner">
+        <h2>פרק 3 — מודל מרובה משתנים</h2>
+      </div>
+
+      <p>הריצה — בדיוק כמו בשיעורים הקודמים. <code class="ltr">sm.add_constant</code>, <code class="ltr">sm.OLS</code>, <code class="ltr">.fit()</code>, <code class="ltr">summary()</code>. רק שעכשיו ב-$X$ יש $5$ עמודות במקום אחת.</p>
+
+      <div class="formula-box">
+        $\hat{Y} = b_0 + b_1\,\text{guidance} + b_2\,\text{investment} + b_3\,\text{training\_hours} + b_4\,\text{equipment} + b_5\,\text{inspection}$
+      </div>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תא 7</span> (OLS עם $5$ רגרסורים + summary).
+        </span>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>מה ראינו ב-summary</h3>
+        <ol>
+          <li><b>$R^2 = 0.989$</b> — המודל מסביר $98.9\%$ מהשונות בתאונות. נראה מצוין.</li>
+          <li><b>שני מקדמים מובהקים:</b> <code class="ltr">guidance</code> ($\hat{b} = -13.76$, $\text{p} \approx 0$) ו-<code class="ltr">investment</code> ($\hat{b} = -2.54$, $\text{p} \approx 0.0001$).</li>
+          <li><b>שלושה מקדמים <i>לא</i> מובהקים:</b> <code class="ltr">training_hours</code> ($\text{p} = 0.29$), <code class="ltr">equipment_count</code> ($\text{p} = 0.51$), <code class="ltr">inspection_count</code> ($\text{p} = 0.24$).</li>
+        </ol>
+        <p style="margin:8px 0 0 0;"><b>משהו פה לא מסתדר.</b> אם המודל מסביר $99\%$ — איך $3$ מתוך $5$ משתנים לא תורמים?</p>
+      </div>
+
+      <p><b>פירוש מקדם בעולם של רגרסיה מרובה</b> — לוקחים את $\hat{b}_1 = -13.76$ של <code class="ltr">guidance</code>: "כל יחידה נוספת של הדרכה $\to$ $13.76$ פחות תאונות $\to$ <b>בהנחה שהשאר לא משתנה</b>". הסיומת הזו היא <i>חובה</i>. ללא הסיומת — הפירוש לא מדויק. עם הסיומת — הוא נכון מתמטית, אבל בעולם האמיתי, אם ההדרכה גדלה — שעות ההדרכה הכוללות גדלות איתה אוטומטית. <b>הפירוש מתמטית טהור, אבל דורש משהו שלא קורה במציאות.</b></p>
+
+      <div class="callout">
+        <h3>📊 העשרה: מה זה "כשהשאר קבועים"? — ויזואליה תלת-ממדית</h3>
+
+        <p>בעולם של $2$ משתנים מסבירים, $\hat{Y} = b_0 + b_1 X_1 + b_2 X_2$ הוא <b>מישור</b> בתוך מרחב תלת-ממדי $(X_1, X_2, Y)$. כדי לפרש את $b_1$ באופן ויזואלי:</p>
+
+        <ol style="margin:8px 0;">
+          <li><b>מקבעים את $X_2$</b> בערך מסוים — נגיד $X_2 = 5$.</li>
+          <li>זה כמו לחתוך את המישור עם סכין — מקבלים <b>פרוסה</b> שעוברת באורך כל המישור באותו $X_2$.</li>
+          <li>הפרוסה הזאת היא <b>קו ישר</b> בעולם של $X_1$ ו-$Y$, עם <b>שיפוע $b_1$</b>.</li>
+        </ol>
+
+        <div class="formula-box" style="font-size:18px;">
+          $\hat{Y} = b_0 + b_1 X_1 + b_2 \cdot \underbrace{5}_{\text{קבוע}} \;\;\Longleftrightarrow\;\; \hat{Y} = (b_0 + 5 b_2) + b_1 X_1$
+        </div>
+
+        <p style="margin-top:10px;"><b>זה מה ש-$b_1$ מודד</b> — השיפוע "בכיוון" $X_1$, כשאר הצירים מקובעים. אם $b_1 = -13.76$, אז כל יחידה ב-$X_1$ מורידה $Y$ ב-$13.76$ — לאורך הפרוסה הזאת.</p>
+
+        <p style="margin-top:10px;"><b>עם $5$ משתנים אי אפשר לצייר</b> — אנחנו במרחב $6$-ממדי. אבל הרעיון אותו רעיון: $b_j$ הוא השיפוע "בכיוון" $X_j$ במרחב הרב-ממדי, כשאר הצירים מקובעים. <b>ובכיוון של $1$ משתנה לבדו, אי אפשר באמת לזוז כשהשאר תלויים בו.</b> זה השורש של הבעיה שתחשף בפרק הבא.</p>
+      </div>
+
+      <p>אז למה $3$ מקדמים לא יצאו מובהקים? בואו נסתכל איך המשתנים מתנהגים <i>זה ביחס לזה</i>, לא ביחס ל-$Y$.</p>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 4 — Multicollinearity by eye: correlation (cells 8–9)         -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-4">
+      <div class="section-banner">
+        <h2>פרק 4 — מולטיקוליניאריות בעין: correlation</h2>
+      </div>
+
+      <p>הכלי הראשון: <b>מטריצת קורלציה</b>. נחשב את הקורלציה בין כל זוג רגרסורים, ונציג כ-heatmap.</p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תא 9</span> (correlation matrix + seaborn heatmap).
+        </span>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>מה ראינו ב-heatmap</h3>
+        <ul>
+          <li><b><code class="ltr">training_hours</code> <bdi dir="ltr">↔</bdi> <code class="ltr">guidance</code>:</b> $r = 0.998$ — כמעט קו ישר. שני המשתנים מודדים בערך אותה תופעה.</li>
+          <li><b><code class="ltr">equipment_count</code> <bdi dir="ltr">↔</bdi> <code class="ltr">investment</code>:</b> $r = 0.999$ — אותו דבר. ציוד נרכש כפונקציה של תקציב.</li>
+          <li><b><code class="ltr">inspection_count</code></b> מתואם עם שניהם ($r = 0.61$ עם <code class="ltr">guidance</code>, $r = 0.78$ עם <code class="ltr">investment</code>) — כי הוא תוצר של שניהם.</li>
+        </ul>
+        <p style="margin:8px 0 0 0;">$3$ המשתנים שמנהל הבטיחות הוסיף הם בעצם <b>שכפולים</b> של $2$ המשתנים המקוריים. הם לא מוסיפים מידע חדש — רק מבלבלים את המודל.</p>
+      </div>
+
+      <div class="qa">
+        <div class="question">שאלה לכיתה: המקדמים של $3$ המשתנים החדשים יצאו לא מובהקים. האם זה אומר שלהם אין השפעה על תאונות?</div>
+        <button class="toggle-btn">גלה תשובה</button>
+        <div class="answer">
+          <p><b>לא.</b> מולטיקוליניאריות מנפחת את ה-standard error של המקדם. ה-coef עצמו עדיין יוצא בערך נכון, אבל ה-SE שלו גדול — וכשמחלקים coef חלקי SE מקבלים $t$ קטן ו-$p$ גדול.</p>
+          <p style="margin-top:8px;">המודל לא מבדיל בין "תרומה של הדרכה" לבין "תרומה של שעות הדרכה כוללות" — כי שניהם מודדים את אותה תופעה. <b>חוסר מובהקות פה אינו עדות להעדר השפעה — הוא עדות לכך שהמודל לא מצליח להפריד את התרומות.</b></p>
+        </div>
+      </div>
+
+      <p><b>אבל</b> — מטריצת קורלציה מודדת רק קשרים בין <i>שני</i> משתנים. מה אם משתנה אחד מוסבר על ידי שילוב לינארי של כמה אחרים יחד? לזה צריך כלי יותר חכם.</p>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 5 — VIF (cells 10–11)                                         -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-5">
+      <div class="section-banner">
+        <h2>פרק 5 — VIF</h2>
+      </div>
+
+      <p><b>VIF</b> — Variance Inflation Factor — מודד עד כמה המשתנה $X_j$ מוסבר על ידי <i>כל</i> שאר המשתנים יחד, לא רק על ידי משתנה אחד. זה הכלי הפורמלי לזיהוי multicollinearity.</p>
+
+      <div class="formula-box">
+        $\text{VIF}_j = \dfrac{1}{1 - R_j^2}$
+      </div>
+
+      <p>כאשר $R_j^2$ הוא ה-$R^2$ של רגרסיה <i>נוספת</i> שמריצים בצד — של $X_j$ על שאר ה-X-ים. <b>כלל אצבע:</b></p>
+
+      <ul>
+        <li>$\text{VIF} \approx 1$ — המשתנה עצמאי, אין בעיה.</li>
+        <li>$\text{VIF} > 5$ — מתחיל להיות חשוד.</li>
+        <li>$\text{VIF} > 10$ — דגל אדום, multicollinearity ניכרת.</li>
+      </ul>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תא 11</span> (חישוב VIF לכל $5$ הרגרסורים).
+        </span>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>מה ראינו ב-VIF</h3>
+        <ul>
+          <li><b><code class="ltr">guidance</code>:</b> $\text{VIF} \approx 247$ <bdi dir="ltr">⚠️</bdi></li>
+          <li><b><code class="ltr">investment</code>:</b> $\text{VIF} \approx 571$ <bdi dir="ltr">⚠️</bdi></li>
+          <li><b><code class="ltr">training_hours</code>:</b> $\text{VIF} \approx 243$ <bdi dir="ltr">⚠️</bdi></li>
+          <li><b><code class="ltr">equipment_count</code>:</b> $\text{VIF} \approx 537$ <bdi dir="ltr">⚠️</bdi></li>
+          <li><b><code class="ltr">inspection_count</code>:</b> $\text{VIF} \approx 46$ <bdi dir="ltr">⚠️</bdi></li>
+        </ul>
+        <p style="margin:8px 0 0 0;">כל ה-$5$ בדגל אדום. <code class="ltr">inspection_count</code> נמוך יותר כי הוא תלוי ב-$2$ משתנים, לא רק ב-$1$ (אז אף אחד לא "מסביר" אותו ברמה של $0.999$).</p>
+      </div>
+
+      <div class="callout">
+        <h3>📊 העשרה: אינטואיציית VIF — מאיפה הנוסחה?</h3>
+
+        <p>רוצים לבדוק אם $X_j$ הוא בעצם "שילוב" של שאר ה-X-ים. <b>איך?</b> פשוט מנסים להתאים אותו אליהם.</p>
+
+        <ol style="margin:8px 0;">
+          <li><b>מריצים רגרסיה צדדית</b> — $X_j$ כתלוי, יתר ה-X-ים כמסבירים.</li>
+          <li><b>מסתכלים על ה-$R^2$</b> של הרגרסיה הזאת. נקרא לזה $R_j^2$.</li>
+          <li>$R_j^2$ אומר: "איזה אחוז משונות $X_j$ מוסבר על ידי שאר המשתנים".</li>
+        </ol>
+
+        <p style="margin-top:10px;"><b>שני קצוות:</b></p>
+        <ul style="margin:8px 0;">
+          <li>אם $R_j^2 \approx 0$ <bdi dir="ltr">→</bdi> $X_j$ עצמאי <bdi dir="ltr">→</bdi> אין בעיה <bdi dir="ltr">→</bdi> $\text{VIF} = 1/(1-0) = 1$.</li>
+          <li>אם $R_j^2 \to 1$ <bdi dir="ltr">→</bdi> $X_j$ הוא בערך פונקציה של האחרים <bdi dir="ltr">→</bdi> $\text{VIF} \to \infty$ <bdi dir="ltr">→</bdi> SE מתפוצץ.</li>
+        </ul>
+
+        <p style="margin-top:10px;"><b>למה הסקייל מנופח? למה לא רק $R_j^2$ לבדו?</b> כי SE ב-OLS פרופורציונלי לסקייל הזה: $\text{Var}(\hat{b}_j) \propto 1/(1-R_j^2)$. כש-$R_j^2$ קרוב ל-$1$, ה-Var קופץ. <b>VIF הוא בדיוק מה שמכפיל את ה-SE — לכן אם VIF=$100$, ה-SE שלך גדול פי $\sqrt{100}=10$ ממה שהיה במצב נקי.</b></p>
+
+        <p style="margin-top:10px;">בקיצור: <b>VIF מציג את "עד כמה האחרים מסבירים אותך" בסקייל שמראה גם כמה זה פוגע ב-SE.</b></p>
+      </div>
+
+      <p>מצאנו את הבעיה. עכשיו — מה עושים איתה?</p>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 6 — Drop & compare (cells 12–13)                              -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-6">
+      <div class="section-banner">
+        <h2>פרק 6 — Drop ולהשוות לפני/אחרי</h2>
+      </div>
+
+      <p>הפתרון: להסיר את $3$ המשתנים הסינתטיים יחד. <b>למה את כולם, ולא רק אחד?</b></p>
+
+      <ul>
+        <li>מבחינה מתמטית — אם נשאיר אחד מהם, ה-VIF של שני האחרים יישאר גבוה (כל אחד מסביר את האחר).</li>
+        <li>מבחינה כלכלית/מקצועית — שלושתם מודדים בערך אותה תופעה (תוצרי תקציב והדרכה). הם לא קבוצת משתנים שונה — הם שכפולים.</li>
+      </ul>
+
+      <p>נשארים רק <code class="ltr">guidance</code> ו-<code class="ltr">investment</code> — שני המשתנים המקוריים שמנהל הבטיחות התחיל איתם.</p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תא 13</span> (OLS עם $2$ משתנים + summary).
+        </span>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>מה ראינו אחרי ה-drop</h3>
+        <ol>
+          <li><b>$R^2$ נשאר זהה.</b> $0.988$ לעומת $0.989$ קודם. <b>המידע מ-$3$ המשתנים שזרקנו היה אפס.</b> הם היו רק שכפולים.</li>
+          <li><b>המקדמים השתנו משמעותית:</b>
+            <ul style="margin:6px 0;">
+              <li><code class="ltr">guidance</code>: $-13.76$ <bdi dir="ltr">→</bdi> $-10.27$ — שינוי של <b>$25\%$</b>.</li>
+              <li><code class="ltr">investment</code>: $-2.54$ <bdi dir="ltr">→</bdi> $-2.00$ — שינוי של <b>$27\%$</b>.</li>
+            </ul>
+            אלה הערכים האמיתיים. במודל המלא, ה-coefs היו "מנפחים" את עצמם כי הם לקחו על עצמם גם את המידע שכבר נתפס על ידי המתואמים שלהם.
+          </li>
+          <li><b>כל ה-VIF ירדו ל-$1.0$.</b> נקי לגמרי.</li>
+          <li><b>הפרשנות הופכת אפשרית:</b> כל יחידת <code class="ltr">guidance</code> (שעת הדרכה) <bdi dir="ltr">→</bdi> $10.27$ פחות תאונות. כל יחידת <code class="ltr">investment</code> (אלף ש"ח תקציב) <bdi dir="ltr">→</bdi> $2$ פחות תאונות. <b>זאת הסקה אפשרית — אפשר להציג את זה למנהל הבטיחות.</b></li>
+        </ol>
+      </div>
+
+      <p style="margin-top:14px;"><b>נקודה חשובה:</b> זה לא רק SE שמתפוצץ ב-multicollinearity — <b>גם ערכי המקדמים עצמם מוטים</b> במודל המלא. גם אם הם יוצאים מובהקים, הם לא ערכים שאפשר להשתמש בהם לפרשנות. ראינו שינוי של $25\%$ ב-<code class="ltr">guidance</code> בין שני מודלים שעבדו על אותו דאטה — זה לא משתנה שיציב.</p>
+
+      <!-- =================================================== -->
+      <!-- 6b — predict() with explanation of vector structure  -->
+      <!-- =================================================== -->
+      <h3 style="margin-top:24px;">חיזוי לערכים חדשים — <code class="ltr">predict()</code></h3>
+
+      <p>אחרי שיש לנו מודל יציב, אפשר להשתמש בו כדי לחזות מספר תאונות לערכי $X$ חדשים. למשל — מפעל עם $3$ שעות הדרכה לעובד ו-$20$ אלפי ש"ח תקציב.</p>
+
+      <div class="formula-box" style="font-size:18px;">
+        <code class="ltr">model_red.predict(np.array([[1, 3, 20]]))</code>
+      </div>
+
+      <div class="callout">
+        <h3>מה כל ערך בוקטור מציין?</h3>
+        <ul>
+          <li><b>1</b> בהתחלה — ה-<code class="ltr">Intercept</code>. תמיד $1$, כי זה החותך של המשוואה ($b_0 \cdot 1$).</li>
+          <li><b>3</b> — ערך ה-<code class="ltr">guidance</code> שאנחנו רוצים לחזות עבורו ($3$ שעות הדרכה).</li>
+          <li><b>20</b> — ערך ה-<code class="ltr">investment</code> ($20$ אלפי ש"ח).</li>
+        </ul>
+        <p style="margin:8px 0 0 0;"><b>סדר הערכים חייב להתאים לסדר העמודות ב-<code class="ltr">X_red.columns</code></b>. אם נחליף את הסדר — נקבל חיזוי שגוי בלי שגיאת ריצה.</p>
+        <p style="margin:8px 0 0 0;"><b>תוצאה:</b> $\hat{Y} \approx 279.77$ תאונות.</p>
+      </div>
+
+      <p><b>הצצה לשיעור הבא:</b> כשנוסיף משתני דמה ל-<code class="ltr">Factory</code> (אריאל/חיפה/ירושלים), הוקטור יתארך — נצטרך גם ערכים שיציינו את המפעל. למשל $[1, 3, 20, 0, 0]$ עם שני האפסים בסוף שיציינו "לא אריאל ולא חיפה" — כלומר ירושלים. אבל המבנה זהה: ערך לכל עמודה ב-$X$.</p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תא 14</span> (<code class="ltr">model_red.predict([[1, 3, 20]])</code>).
+        </span>
+      </div>
+
+      <!-- =================================================== -->
+      <!-- 6c — Standardized betas                              -->
+      <!-- =================================================== -->
+      <h3 style="margin-top:24px;">איזה משתנה הכי משפיע? — Standardized Betas</h3>
+
+      <p>אחרי שהמודל יציב, מנהל הבטיחות שואל את השאלה הבאה: <b>איזה מהשניים — הדרכה או תקציב — משפיע יותר על מספר התאונות?</b></p>
+
+      <p>מבט תמים על המקדמים: <code class="ltr">guidance</code> עם $\hat{b} = -10.27$, <code class="ltr">investment</code> עם $\hat{b} = -2.00$. נראה ש-<code class="ltr">guidance</code> משפיע פי $5$ יותר. <b>אבל זה לא נכון.</b></p>
+
+      <div class="callout">
+        <h3>הבעיה — יחידות שונות</h3>
+        <p>שני המקדמים ביחידות שונות:</p>
+        <ul>
+          <li><code class="ltr">guidance</code> נמדד ב<b>שעות הדרכה</b>. נע בטווח $0$–$4$ שעות.</li>
+          <li><code class="ltr">investment</code> נמדד ב<b>אלפי ש"ח</b>. נע בטווח $0$–$30$ אלפי ש"ח.</li>
+        </ul>
+        <p style="margin:8px 0 0 0;">השוואת המקדמים הגולמיים זה כמו להשוות "מה משפיע יותר — תפוחים או קילוגרמים?". <b>צריך מדד שמסיר את היחידות.</b></p>
+      </div>
+
+      <h4 style="margin-top:16px;">הפיתרון: Standardized Beta</h4>
+
+      <p>מנרמלים כל מקדם לפי היחס בין סטיית התקן של $X_i$ לסטיית התקן של $Y$:</p>
+
+      <div class="formula-box">
+        $\beta_i^{std} = \beta_i \cdot \dfrac{s_{X_i}}{s_Y}$
+      </div>
+
+      <p>כאשר:</p>
+      <ul>
+        <li>$s_{X_i}$ — סטיית התקן של $X_i$ (כמה "זז" המשתנה $X$ במציאות).</li>
+        <li>$s_Y$ — סטיית התקן של $Y$ (כמה "זז" המשתנה התלוי במציאות).</li>
+      </ul>
+
+      <p><b>הפירוש החדש:</b> $\beta_i^{std}$ אומר <b>"בכמה סטיות תקן של $Y$ משתנה החיזוי, לכל סטיית תקן של $X_i$"</b>. כעת שני המקדמים בסקייל זהה — שניהם מודדים שינוי בסטיות תקן.</p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תא 15</span> (חישוב standardized betas + טבלת השוואה).
+        </span>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>מה ראינו בטבלה</h3>
+        <table style="width:100%; border-collapse:collapse; margin:8px 0;">
+          <thead>
+            <tr style="background:#eaf6ff;">
+              <th style="padding:6px; border:1px solid #aac; text-align:right;">משתנה</th>
+              <th style="padding:6px; border:1px solid #aac;">Raw beta</th>
+              <th style="padding:6px; border:1px solid #aac;">Standardized beta</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="padding:6px; border:1px solid #aac;"><code class="ltr">guidance</code></td>
+              <td style="padding:6px; border:1px solid #aac; text-align:center;">$-10.27$</td>
+              <td style="padding:6px; border:1px solid #aac; text-align:center;"><b>$-0.624$</b></td>
+            </tr>
+            <tr>
+              <td style="padding:6px; border:1px solid #aac;"><code class="ltr">investment</code></td>
+              <td style="padding:6px; border:1px solid #aac; text-align:center;">$-2.00$</td>
+              <td style="padding:6px; border:1px solid #aac; text-align:center;"><b>$-0.774$</b></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <p style="margin-top:10px;"><b>הסיפור התהפך:</b> ב-raw — <code class="ltr">guidance</code> נראה חזק פי $5$. ב-standardized — <code class="ltr">investment</code> בעצם <b>חזק יותר</b> ($0.774$ לעומת $0.624$).</p>
+
+        <p style="margin-top:8px;"><b>למה זה קורה?</b> כי <code class="ltr">investment</code> "יכול לזוז" בטווח גדול יותר במציאות. סטיית תקן אחת של תקציב $\approx 9$ אלפי ש"ח — תזוזה משמעותית. סטיית תקן אחת של הדרכה $\approx 1.4$ שעות — פחות. כשמודדים ב"יחידות של שונות", שניהם דומים בעוצמה — עם יתרון קל לתקציב.</p>
+
+        <p style="margin-top:8px;"><b>השלכה מעשית:</b> מנהל בטיחות שמסתכל רק על המקדמים הגולמיים היה ממליץ "תוסיפו עוד שעות הדרכה" כפיתרון העיקרי. הניתוח הסטנדרטי מראה ששני הצירים משפיעים בצורה דומה — והעלאת התקציב לא פחות חשובה.</p>
+      </div>
+
+      <p style="margin-top:14px;"><b>מתי משתמשים ב-standardized betas?</b> כש-(א) רוצים להשוות בין מקדמים עם יחידות שונות; (ב) רוצים לסדר את המשתנים לפי "השפעה יחסית"; (ג) במאמרים שמציגים תוצאות לא-מומחים שלא מכירים את היחידות. <b>לא משתמשים</b> כשהיחידות אותן הן (אז ה-raw כבר נכון להשוואה), או כשהפירוש המעשי דורש את היחידה המקורית ("כל שעה תורמת $X$").</p>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 7 — Prediction vs. Inference (cell 14)                        -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-7">
+      <div class="section-banner">
+        <h2>פרק 7 — חיזוי vs. הסקה</h2>
+      </div>
+
+      <p>השאלה הגדולה: <b>תמיד צריך לטפל ב-multicollinearity?</b> התשובה תלויה במטרה שלנו עם המודל.</p>
+
+      <div class="callout">
+        <h3>📊 העשרה: שני עולמות, שתי החלטות</h3>
+
+        <p><b>עולם א' — חיזוי בלבד.</b> מה שמעניין אותך הוא ה-$\hat{Y}$ — הצפי לתאונות במפעל ברבעון הבא. לא אכפת לך לפרק את התרומה של כל משתנה.</p>
+        <ul style="margin:8px 0;">
+          <li>multicollinearity <b>לא הורסת</b> את ה-$\hat{Y}$. ראינו את זה: שני המודלים (מלא ומצומצם) נותנים $R^2 = 0.99$ כמעט זהה. ה-MSE על test set יהיה דומה.</li>
+          <li>המקדמים האישיים מתנדנדים — אבל הם "מתנדנדים יחד" בצורה שמשמרת את הסכום $b_1 X_1 + b_2 X_2 + \ldots$. וזה כל מה שאתה צריך לחיזוי.</li>
+          <li><b>בעולם הזה — VIF גבוה לא מחייב לטפל.</b></li>
+        </ul>
+
+        <p style="margin-top:10px;"><b>עולם ב' — הסקה ופרשנות מקדמים.</b> מה שמעניין אותך הוא 'כמה כל שעת הדרכה באמת תורמת להפחתת תאונות'. אתה הולך לבוא לוועדת בטיחות ולומר "להעלות את ההדרכה ב-$2$ שעות לעובד יוריד תאונות ב-$X$".</p>
+        <ul style="margin:8px 0;">
+          <li>multicollinearity <b>קריטית</b> כאן. ראינו בעצמנו: <code class="ltr">guidance</code> עבר מ-$-13.76$ ל-$-10.27$ — שינוי דרמטי בין שני מודלים על אותו דאטה.</li>
+          <li>המקדמים <b>לא יציבים</b> בין דאטהסטים, ה-SE שלהם מנופח, אי אפשר לעשות claim מעשי מהם.</li>
+          <li>אנליסט שצריך להמליץ על מדיניות <b>חייב</b> לטפל קודם.</li>
+        </ul>
+
+        <p style="margin-top:10px;"><b>כלל אצבע:</b> אם המטרה חיזוי טהור — אפשר להתעלם מ-VIF גבוה. אם רוצים לפרש — חובה לטפל (להסיר משתנה, לשלב כמה משתנים לאחד, או לחפש פיצ'ר חליפי).</p>
+      </div>
+
+      <div class="qa">
+        <div class="question">שאלה לכיתה: $\text{VIF} = 12$ על משתנה אחד — <b>תמיד</b> תזרוק אותו מהמודל?</div>
+        <button class="toggle-btn">גלה תשובה</button>
+        <div class="answer">
+          <p><b>לא תמיד.</b> השאלה היא מה אתה עושה עם המודל.</p>
+          <ul style="margin:6px 0;">
+            <li><b>אם המטרה חיזוי</b> — אפשר להשאיר. ה-$\hat{Y}$ יהיה טוב והמקדמים האישיים פחות מעניינים.</li>
+            <li><b>אם המטרה פרשנות מקדמים</b> — חובה להוריד או להחליף בפיצ'ר אחר (למשל, שילוב לינארי של המתואמים — נושא מתקדם), כדי שהמקדם של מה שנשאר יהיה יציב ומתפרש.</li>
+            <li><b>בנוסף</b> — תלוי גם בכמה כל המקדם חשוב לך. אם זה משתנה צדדי שלא ינוצל לקבלת החלטה — פחות קריטי. אם זה המשתנה המרכזי שיהיה כותרת בדוח — קריטי.</li>
+          </ul>
+          <p style="margin-top:8px;"><b>השורה התחתונה:</b> $\text{VIF}$ הוא דגל, לא צו. הוא מסמן לך "תיזהר כאן" — אבל ההחלטה אם לטפל תלויה במה אתה עומד לעשות עם המודל.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 8 — Closing & exercise (cells 15–17)                          -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-8">
+      <div class="section-banner">
+        <h2>פרק 8 — סגירה ותרגיל</h2>
+      </div>
+
+      <p>סיכום זריז של מה שלקחנו היום:</p>
+
+      <div class="callout callout--accent">
+        <h3>$3$ נקודות לקחת הביתה</h3>
+        <ol>
+          <li><b>פירוש מקדם דורש "כשהשאר קבועים".</b> הסיומת הזו אינה קישוט — היא מהות הפירוש ברגרסיה מרובה.</li>
+          <li><b>משתנים מתואמים מנפחים SE <i>וגם</i> מטים מקדמים.</b> גם מקדם שיוצא מובהק יכול להיות מנופח/מוטה. ראינו שינוי של $25\%$ ב-<code class="ltr">guidance</code>.</li>
+          <li><b>ההכרעה אם לטפל תלויה במטרה.</b> חיזוי טהור — לא חובה. הסקה ופרשנות — חובה.</li>
+        </ol>
+      </div>
+
+      <p><b>תרגיל קצר לכיתה:</b> חשבו ידנית את החיזוי למספר התאונות עבור מפעל עם <code class="ltr">guidance = 3</code> ו-<code class="ltr">investment = 20</code>, על בסיס המקדמים מ-<code class="ltr">model_red.summary()</code>. <b>בדיקה:</b> יש לקבל אותו ערך בדיוק כמו ב-<code class="ltr">predict()</code> בתא 14 ($\approx 279.77$).</p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תאים 18–19</span> (<code class="ltr">Write your answer here</code> + תא קוד ריק).
+        </span>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- SUMMARY                                                             -->
+    <!-- ================================================================== -->
+    <section class="block" id="summary">
+      <div class="section-banner">
+        <h2>סיכום + הצצה לשיעור 4</h2>
+      </div>
+
+      <div class="callout">
+        <h3>$5$ נקודות לזכור</h3>
+        <ol>
+          <li><b>רגרסיה מרובה היא הכללה של רגרסיה פשוטה</b> — אותה משוואה $\hat{Y} = b_0 + \sum b_j X_j$, אותו <code class="ltr">summary()</code>, רק עם יותר עמודות ב-$X$.</li>
+          <li><b>"כשהשאר קבועים" אינו קישוט</b> — זאת מהות הפירוש של $b_j$ ברגרסיה מרובה.</li>
+          <li><b>correlation matrix רואה זוגות, VIF רואה הכל יחד.</b> $\text{VIF} > 10$ הוא דגל אדום.</li>
+          <li><b>multicollinearity מנפחת SE <i>וגם</i> מטה מקדמים.</b> השוואה בין מודל מלא למצומצם חושפת את שני האפקטים.</li>
+          <li><b>ההחלטה לטפל תלויה במטרה</b> — חיזוי vs. הסקה.</li>
+        </ol>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>בשיעור הבא — Dummy Variables</h3>
+        <p>ראיתם בדאטה את <code class="ltr">Factory</code> — אריאל, חיפה, ירושלים. איך מכניסים שם של מפעל למודל לינארי? במקום להתעלם ממנו, נלמד לקודד אותו כ-<b>משתני דמה</b> (one-hot encoding) — ככה נוכל גם להעריך אם המפעל עצמו משפיע על מספר התאונות, מעבר להדרכה ולתקציב.</p>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- EXTENDED DEEP-DIVE — when is multicollinearity actually a problem?  -->
+    <!-- ================================================================== -->
+    <section class="block" id="deep-dive">
+      <div class="section-banner">
+        <h2>📖 מבט מורחב — מתי multicollinearity היא באמת בעיה?</h2>
+      </div>
+
+      <p style="font-size:18px;"><i>הסקציה הזאת היא העמקה לא חובה — קריאה לבית. היא מסכמת ומרחיבה את הדיון של פרק 7 ("חיזוי vs. הסקה"), עם דגשים שלא הספקנו בכיתה.</i></p>
+
+      <h3 style="margin-top:20px;">המיתוס הנפוץ — "VIF גבוה זה אסון"</h3>
+
+      <p>בספרי לימוד רבים, multicollinearity מוצגת כ"בעיה רצינית שצריך תמיד לטפל בה". זה לא מדויק. <b>multicollinearity היא בעיה ספציפית, לא בעיה כללית.</b> היא פוגעת בדבר אחד בלבד: <b>היכולת לפרש מקדמים בודדים.</b> היא <i>לא</i> פוגעת ב-:</p>
+
+      <ul>
+        <li><b>$R^2$ של המודל.</b> ראינו: $R^2 = 0.989$ במלא, $0.988$ במצומצם — כמעט זהה. <b>היכולת ההסברית הכוללת של המודל אינה מושפעת.</b></li>
+        <li><b>החיזוי $\hat{Y}$.</b> שני המודלים נותנים $\hat{Y}$ דומים מאוד עבור אותו $X$. multicollinearity לא הופכת את ה-$\hat{Y}$ למוטה.</li>
+        <li><b>שגיאת חיזוי על test set.</b> ב-prediction context (אותו דאטה, אותה התפלגות), ה-MSE לא משתנה משמעותית בנוכחות multicollinearity.</li>
+      </ul>
+
+      <h3 style="margin-top:20px;">מה כן קורה — בלשון מדויקת</h3>
+
+      <p>multicollinearity עושה $3$ דברים, ושלושתם רלוונטיים <b>רק לפרשנות</b>:</p>
+
+      <ol>
+        <li><b>מנפחת את ה-Standard Error של מקדמים בודדים.</b> ה-SE קשור ישירות ל-VIF: $\text{SE}(\hat{b}_j) \propto \sqrt{\text{VIF}_j}$. אם VIF=$100$, ה-SE גדול פי $10$ ממה שהיה בלי. זה מקטין את ה-$t$-statistic ומגדיל את ה-$p$-value — ולכן מקדם <i>אמיתי</i> יכול לצאת לא מובהק.</li>
+
+        <li><b>מטה את ערך המקדם הגולמי.</b> ראינו זאת בעצמנו — <code class="ltr">guidance</code> עבר מ-$-13.76$ ל-$-10.27$ בין שני מודלים. המקדם במודל המלא "נדבק" לחלק מהמידע של המתואמים שלו. זאת הטיה אמיתית.</li>
+
+        <li><b>הופכת את המקדמים ללא יציבים בין דאטהסטים.</b> אם ניקח דאטה דומה ממקור שני (מפעלים אחרים, רבעונים אחרים) — המקדמים יכולים להשתנות דרמטית. בלי multicollinearity, המקדמים יציבים מאוד.</li>
+      </ol>
+
+      <p>שלושת הדברים האלה <b>קשורים זה לזה ובאים יחד</b>, אבל כולם משפיעים רק על הפרשנות הסטטיסטית של מקדמים בודדים — לא על המודל בכללותו.</p>
+
+      <h3 style="margin-top:20px;">מתי multicollinearity היא <i>באמת</i> בעיה</h3>
+
+      <p>שני תנאים חייבים להתקיים בו-זמנית:</p>
+
+      <div class="callout callout--accent">
+        <ol>
+          <li><b>אתה רוצה לפרש או לדווח על מקדם בודד.</b> "כל שעת הדרכה תורמת $X$ תאונות פחות."</li>
+          <li><b>הפרשנות הזאת תשמש לקבלת החלטה / להמלצת מדיניות / לטענה מדעית.</b> "אז נמליץ להוסיף $2$ שעות הדרכה."</li>
+        </ol>
+      </div>
+
+      <p>אם שני התנאים מתקיימים — <b>חובה</b> לטפל. אחרת — אתה מסתמך על מספר לא יציב לקבלת החלטה אמיתית. זאת המסגרת המרכזית: <b>multicollinearity היא בעיה <i>פרשנית</i>, לא בעיה <i>חיזויית</i>.</b></p>
+
+      <h3 style="margin-top:20px;">מתי multicollinearity היא <i>לא</i> בעיה</h3>
+
+      <p>במצבים האלה, אפשר להשאיר VIF גבוה ולא להזיז דבר:</p>
+
+      <ul>
+        <li><b>חיזוי טהור.</b> אתה רוצה לחזות מספר תאונות ברבעון הבא. לא מעניין אותך מה תורם כל משתנה — רק ה-$\hat{Y}$ הסופי. <b>multicollinearity לא תזיק.</b></li>
+
+        <li><b>המשתנים המתואמים הם "control variables".</b> אתה לומד את ההשפעה של משתנה מסוים $X_1$, ויש לך $X_2, X_3, \ldots$ כפיצ'רים שצריך להחזיק קבועים אבל לא מעניינים אותך לפרשנות. אם ה-VIF הגבוה הוא בין ה-controls — תתעלם.</li>
+
+        <li><b>גודל המדגם גדול מאוד.</b> ראינו זאת בעצמנו — עם $125$ תצפיות וסיגנל חזק, גם VIF=$571$ לא הצליח להפוך את <code class="ltr">investment</code> ללא מובהק. במדגמים גדולים, multicollinearity קיצונית עדיין יכולה להותיר מקדמים מובהקים. <b>לא אומר שהם מדויקים — אבל אומר שהבעיה פחות קריטית בפועל.</b></li>
+
+        <li><b>אתה מעוניין רק בסכום ההשפעות, לא בפירוק.</b> אם השאלה היא "האם הקבוצה $X_1, X_2, X_3$ יחד תורמת ל-$Y$?", התשובה לא תלויה ב-multicollinearity ביניהם. F-test על קבוצת המשתנים יעבוד.</li>
+
+        <li><b>אתה משווה בין מודלים מקוננים.</b> $R^2$, AIC, BIC — כולם עובדים גם בנוכחות multicollinearity.</li>
+      </ul>
+
+      <h3 style="margin-top:20px;">השוואה: מתי לטפל ומתי לא</h3>
+
+      <table style="width:100%; border-collapse:collapse; margin:8px 0;">
+        <thead>
+          <tr style="background:#eaf6ff;">
+            <th style="padding:8px; border:1px solid #aac; text-align:right;">מטרת המודל</th>
+            <th style="padding:8px; border:1px solid #aac; text-align:right;">VIF גבוה — לטפל?</th>
+            <th style="padding:8px; border:1px solid #aac; text-align:right;">למה</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="padding:8px; border:1px solid #aac;">חיזוי על אותו סוג דאטה</td>
+            <td style="padding:8px; border:1px solid #aac;"><b>לא</b></td>
+            <td style="padding:8px; border:1px solid #aac;">$\hat{Y}$ נשאר טוב.</td>
+          </tr>
+          <tr>
+            <td style="padding:8px; border:1px solid #aac;">חיזוי על דאטה שונה (extrapolation)</td>
+            <td style="padding:8px; border:1px solid #aac;"><b>אולי</b></td>
+            <td style="padding:8px; border:1px solid #aac;">אם מבנה הקורלציה ישתנה בדאטה החדש — החיזוי עלול להיפגע.</td>
+          </tr>
+          <tr>
+            <td style="padding:8px; border:1px solid #aac;">פרשנות מקדם בודד</td>
+            <td style="padding:8px; border:1px solid #aac;"><b>כן, חובה</b></td>
+            <td style="padding:8px; border:1px solid #aac;">המקדם לא יציב.</td>
+          </tr>
+          <tr>
+            <td style="padding:8px; border:1px solid #aac;">המלצת מדיניות מבוססת מקדם</td>
+            <td style="padding:8px; border:1px solid #aac;"><b>כן, חובה</b></td>
+            <td style="padding:8px; border:1px solid #aac;">החלטה אמיתית מבוססת מספר לא יציב.</td>
+          </tr>
+          <tr>
+            <td style="padding:8px; border:1px solid #aac;">סדר חשיבות יחסית של משתנים</td>
+            <td style="padding:8px; border:1px solid #aac;"><b>כן</b></td>
+            <td style="padding:8px; border:1px solid #aac;">צריך מקדמים יציבים כדי להשוות.</td>
+          </tr>
+          <tr>
+            <td style="padding:8px; border:1px solid #aac;">שאלה אם <i>קבוצה</i> של משתנים תורמת</td>
+            <td style="padding:8px; border:1px solid #aac;"><b>לא</b></td>
+            <td style="padding:8px; border:1px solid #aac;">F-test לקבוצה יעבוד גם עם VIF גבוה.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3 style="margin-top:20px;">השורה התחתונה</h3>
+
+      <div class="callout">
+        <p><b>$\text{VIF} > 10$ הוא דגל, לא צו.</b> הוא מסמן: "תיזהר כאן — המקדמים הבודדים לא יציבים." ההחלטה אם לטפל תלויה רק בשאלה אחת:</p>
+
+        <p style="text-align:center; margin:16px 0; font-size:20px;"><b>"האם אני הולך להשתמש במקדם הבודד הזה לקבלת החלטה?"</b></p>
+
+        <p>אם כן — חובה לטפל. אם לא — תתעלם, תמשיך הלאה. <b>multicollinearity היא תופעה סטטיסטית — לא בהכרח בעיה.</b></p>
+      </div>
+
+      <p style="margin-top:14px;"><b>הערה היסטורית:</b> Goldberger (כלכלן בולט במאה ה-$20$) הציע מונח אלטרנטיבי ל-multicollinearity — "<b>micronumerosity</b>" — בלגלוג. הוא טען ש"micronumerosity" (מדגם קטן) זאת בדיוק אותה בעיה: גם היא מנפחת SE, גם היא הופכת מקדמים ללא יציבים, וגם היא נפתרת ב"לחפש דאטה יותר טוב". במלים אחרות: <b>multicollinearity ומדגם קטן הם שני שמות לאותה בעיה — חוסר מידע מספיק כדי להפריד תרומות.</b> וכמו במקרה של מדגם קטן, אנחנו לא תמיד צריכים "לפתור" את זה — לפעמים צריך פשוט לקבל ש"אי אפשר להפריד" ולעבוד עם זה.</p>
+    </section>
+
+  </main>
+
+  <footer class="lesson-footer">
+    Regression Course — Lesson 03 · TA: Raz Elbaz · עודכן: 2026-04-29
+  </footer>
+
+  <script src="shared/interactivity.js"></script>
+</body>
+</html>
