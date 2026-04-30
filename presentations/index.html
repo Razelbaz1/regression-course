@@ -28,6 +28,55 @@
       z-index: 10;
     }
 
+    /* === Developer signature (top + bottom) === */
+    .dev-credit {
+      position: relative;
+      z-index: 10;
+      text-align: center;
+      direction: ltr;
+      font-size: 13px;
+      color: var(--text-muted);
+      letter-spacing: 0.4px;
+    }
+    .dev-credit--top {
+      padding: 14px 0 4px 0;
+      animation: hero-fade-in 0.8s ease;
+    }
+    .dev-credit--top::after {
+      content: '';
+      display: block;
+      width: 64px;
+      height: 1px;
+      background: var(--border-light);
+      margin: 10px auto 0 auto;
+      opacity: 0.55;
+    }
+    .dev-credit b {
+      color: var(--text-title);
+      font-weight: 700;
+      letter-spacing: 0.6px;
+    }
+    .dev-credit-byline {
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+    /* Bottom footer — full LTR direction so the English signature centers cleanly.
+       position: relative + z-index ensures it paints ABOVE the fixed .bg-layer
+       (which has z-index 0 and would otherwise cover static-flow elements). */
+    body > footer.lesson-footer {
+      position: relative;
+      z-index: 10;
+      direction: ltr;
+      text-align: center;
+      background: rgba(255, 255, 255, 0.6);
+      backdrop-filter: blur(2px);
+    }
+    body > footer.lesson-footer b {
+      color: var(--text-title);
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
     /* === Animated background mesh === */
     .bg-layer {
       position: fixed;
@@ -763,6 +812,11 @@
     </svg>
   </div>
 
+  <!-- Developer signature (top) -->
+  <div class="dev-credit dev-credit--top">
+    <span class="dev-credit-byline">Developed by</span><b>Raz Elbaz</b>
+  </div>
+
   <main>
 
     <!-- ========== HERO ========== -->
@@ -843,7 +897,7 @@
   </main>
 
   <footer class="lesson-footer">
-    Regression Course · TA: Raz Elbaz · עודכן: 2026-04-30 (lesson 05 published)
+    <span class="dev-credit-byline">Developed by</span> <b>Raz Elbaz</b> &nbsp;·&nbsp; Ariel University &nbsp;·&nbsp; Last updated 2026-04-30
   </footer>
 
   <!-- ========== Loading overlay ========== -->
