@@ -241,6 +241,118 @@
     .legend i.poisson  { background: linear-gradient(160deg, var(--block-poisson-1),  var(--block-poisson-2)); }
     .legend i.nb       { background: linear-gradient(160deg, var(--block-nb-1),       var(--block-nb-2)); }
 
+    /* === Teaser accordion (under the progression strip) === */
+    .strip-teaser {
+      display: grid;
+      grid-template-rows: 0fr;
+      transition: grid-template-rows 0.42s cubic-bezier(0.4, 0, 0.2, 1),
+                  margin-top 0.42s ease;
+      margin-top: 0;
+    }
+    .strip-teaser.open {
+      grid-template-rows: 1fr;
+      margin-top: 22px;
+    }
+    .strip-teaser-inner {
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .teaser-card {
+      display: grid;
+      grid-template-columns: 1.5fr 1fr;
+      gap: 28px;
+      align-items: center;
+      padding: 22px 28px;
+      background: white;
+      border: 2px solid var(--border-light);
+      border-right: 5px solid var(--block-linear-1);
+      border-radius: 14px;
+      box-shadow: 0 6px 18px rgba(0, 77, 112, 0.10);
+      transition: opacity 0.18s ease;
+    }
+    .teaser-card[data-block="linear"]   { border-right-color: var(--block-linear-1); }
+    .teaser-card[data-block="logistic"] { border-right-color: var(--block-logistic-1); }
+    .teaser-card[data-block="poisson"]  { border-right-color: var(--block-poisson-1); }
+    .teaser-card[data-block="nb"]       { border-right-color: var(--block-nb-1); }
+    .teaser-card.swapping { opacity: 0; }
+
+    .teaser-text { min-width: 0; }
+    .teaser-meta {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-muted);
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .teaser-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--text-title);
+      margin: 0 0 10px 0;
+      line-height: 1.25;
+    }
+    .teaser-body {
+      font-size: 15.5px;
+      color: var(--text-body);
+      line-height: 1.65;
+      margin: 0;
+    }
+    .teaser-body b { color: var(--text-title); }
+
+    .teaser-viz {
+      background: var(--bg-soft);
+      border: 1px solid var(--border-soft);
+      border-radius: 10px;
+      padding: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .teaser-viz svg { width: 100%; height: auto; max-height: 160px; display: block; direction: ltr; }
+    .teaser-viz svg text { direction: ltr; unicode-bidi: isolate; }
+
+    .teaser-soon {
+      display: inline-block;
+      margin-top: 8px;
+      background: var(--accent-bg);
+      color: var(--accent-text);
+      border: 1px dashed var(--accent);
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.4px;
+    }
+
+    /* Active chip: visual feedback + downward pointer */
+    .strip-chip {
+      transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1),
+                  box-shadow 0.22s ease;
+    }
+    .strip-chip.active {
+      transform: translateY(-4px) scale(1.10);
+      box-shadow: 0 0 0 3px white,
+                  0 0 0 5px var(--text-title),
+                  0 8px 20px rgba(0, 77, 112, 0.32);
+      z-index: 6;
+    }
+    .strip-chip.active::after {
+      content: '';
+      position: absolute;
+      bottom: -14px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0; height: 0;
+      border-left: 9px solid transparent;
+      border-right: 9px solid transparent;
+      border-top: 9px solid var(--text-title);
+      pointer-events: none;
+    }
+    /* Suppress hover tooltip while the chip is active (we already show the teaser) */
+    .strip-chip.active[data-name]:hover::before { display: none; }
+
     /* === View toggle (4 בלוקים / רשת אחת) === */
     .view-toggle {
       display: inline-flex;
@@ -687,7 +799,7 @@
 
     <!-- ========== PROGRESSION STRIP ========== -->
     <div class="strip-section">
-      <div class="section-banner"><h2>רצועת ההתקדמות</h2></div>
+      <div class="section-banner"><h2>הצצה לשיעורים</h2></div>
       <div class="strip">
         <div class="strip-chip chip-linear"   data-name="OLS Foundations">1</div>
         <div class="strip-chip chip-linear"   data-name="Transformations">2</div>
@@ -708,10 +820,15 @@
         <span><i class="poisson"></i> Poisson (10–11)</span>
         <span><i class="nb"></i> NB (12)</span>
       </div>
+
+      <!-- Teaser accordion: opens below the strip when a chip is clicked -->
+      <div class="strip-teaser" id="stripTeaser" aria-live="polite">
+        <div class="strip-teaser-inner"></div>
+      </div>
     </div>
 
     <!-- ========== 12 LESSONS ========== -->
-    <div class="section-banner"><h2>12 השיעורים</h2></div>
+    <div class="section-banner"><h2>השיעורים שלנו</h2></div>
 
     <div class="view-toggle" role="tablist" aria-label="תצוגת כרטיסים">
       <button class="active" data-view="blocks" type="button">4 בלוקים</button>
@@ -996,6 +1113,597 @@
 
     // Dismiss overlay when returning via back/forward (bfcache)
     window.addEventListener('pageshow', hideLoading);
+
+    // === Progression-strip teaser accordion ===
+    // Each chip toggles a teaser card below the strip. Clicking the active chip
+    // closes it; clicking a different chip swaps content (brief fade).
+
+    const TEASERS = {
+      1:  { body: 'השיעור הראשון של הקורס. נכיר את <b>רגרסיה לינארית פשוטה</b> — איך מסבירים משתנה אחד באמצעות אחר, איך OLS מוצא את הקו ש"ממזער ריבועים", ומה הסיפור מאחורי כל מספר ב-<code>summary()</code>. <b>הדאטה:</b> מפעל זיקוקים שמודד תאונות לפי שנות ניסיון.', viz: 'linear-scatter' },
+      2:  { body: 'כשהקשר בין X ל-Y לא ישר, OLS עדיין יכול לעזור — עם <b>טרנספורמציות</b>. נראה איך לזהות לא-לינאריות דרך residuals plot, ומתי <code>log(Y)</code>, <code>√Y</code>, או <code>1/Y</code> משחזרים את הליניאריות. נדגיש שטרנספורמציה משנה את פרשנות המקדמים.', viz: 'transform' },
+      3:  { body: 'מעבר ממשתנה אחד למודל עם <b>מספר רגרסורים</b>. הנושא המרכזי: <b>multicollinearity</b> — כששני משתנים מסבירים תלויים זה בזה, ה-SEs מתנפחים והמקדמים מאבדים יציבות. נכיר את VIF ככלי זיהוי, ונבחין בין "בעיה לחיזוי" (לא בעיה) ל-"בעיה להסקה" (כן בעיה).', viz: 'multivariate' },
+      4:  { body: 'איך מכניסים משתנה קטגוריאלי — שם של מפעל, מין, סוג מכונה — למודל לינארי שמכיר רק מספרים. נלמד <b>One-Hot Encoding</b> עם <code>drop_first</code>, את <b>dummy trap</b> (multicollinearity מושלם), ואת <b>F-test המשותף</b> לבדיקה אם הקבוצה כולה תורמת.', viz: 'dummies' },
+      5:  { body: 'מה אם הקשר עצמו אינו ישר? נוסיף איברי חזקה (X², X³, ...). המודל <b>עדיין לינארי בפרמטרים</b> — לכן OLS עובד. הסכנה: <b>overfitting</b>. נפגוש 3 קריטריונים לבחירת מודל (<b>AIC, BIC, adjR²</b>) ושלוש שיטות <code>stepwise</code> (forward, backward, combined).', viz: 'polynomial' },
+      6:  { body: 'שני משתנים לא רק "מסתכמים" — לפעמים אחד <b>משנה את ההשפעה של השני</b>. במודל עם איבר אינטראקציה (X₁·X₂), המקדם של המכפלה הוא ה<b>אינטראקציה</b>. גרפית: שני קווי רגרסיה בעלי שיפועים שונים. סוף הבלוק הלינארי.', viz: 'interaction' },
+      7:  { body: 'OLS לא מתאים ל-Y בינארי (כן/לא, חי/מת, תקלה/אין). נכיר <b>רגרסיה לוגיסטית</b> — sigmoid כפונקציית לינק, log-odds, ופירוש מקדמים כ-odds ratios. תחילת הבלוק השני של הקורס.', viz: 'sigmoid' },
+      8:  { body: 'איך statsmodels באמת מוצא את המקדמים ברגרסיה לוגיסטית? לא OLS. נכיר את <b>Maximum Likelihood Estimation</b> — הרעיון הבסיסי, ה-likelihood function, ולמה עובדים בפועל עם log-likelihood. אינטואיציה: בוחרים פרמטרים שמקסמים את ההסתברות לראות את הדאטה שראינו.', viz: 'mle' },
+      9:  { body: 'איך מעריכים מסווג בינארי? <b>confusion matrix</b> עם 4 משבצות (TP, FP, FN, TN) ומדדים נגזרים (<b>accuracy, precision, recall</b>). נדבר על בחירת <b>threshold</b> ועל ה-trade-off הקלאסי: מורידים את הסף — recall עולה אך precision יורד.', viz: 'confusion' },
+      10: { body: 'מעבר לבלוק שלישי: <b>רגרסיה פואסונית</b> לחיזוי <b>counts</b> (תאונות לרבעון, שיחות בשעה). הסיבה ש-OLS לא מתאים: הספירה לא יכולה להיות שלילית, והשונות מתנהגת אחרת. נכיר log link, <b>counting process</b>, ו-<b>offset</b> לחשיפה משתנה.', viz: 'poisson' },
+      11: { body: 'מתי פואסון מספיק? כשהשונות שווה לתוחלת. בעולם האמיתי השונות לרוב <b>גדולה יותר</b> — <b>overdispersion</b>. נכיר איך לזהות אותה (Pearson chi-square, deviance) ולמה זה קריטי: עם נתונים over-dispersed, ה-SEs של פואסון מטעות. גשר ל-Negative Binomial.', viz: 'dispersion' },
+      12: { body: 'השיעור האחרון. <b>Negative Binomial</b> = פואסון עם פרמטר נוסף (dispersion) שמאפשר "יותר רעש" שלא נכלל במודל הפואסוני. מתי NB עדיף? כשהשונות גדולה מהתוחלת. סיכום הקורס.', viz: 'nb' },
+    };
+
+    function blockOf(num) {
+      const lesson = LESSONS.find(l => l.num === num);
+      return lesson ? lesson.block : 'linear';
+    }
+
+    function renderTeaser(num) {
+      const lesson = LESSONS.find(l => l.num === num);
+      const teaser = TEASERS[num];
+      const block  = blockOf(num);
+      const meta   = `שיעור ${pad2(num)} · ${BLOCK_DISPLAY[block]}`;
+
+      const title = teaser?.title || lesson?.title || '';
+      const body  = teaser?.body  || lesson?.goal  || '';
+      const soon  = lesson && !lesson.ready
+        ? '<span class="teaser-soon">בקרוב</span>'
+        : '';
+      const viz   = teaser?.viz ? renderViz(teaser.viz, block) : renderViz('placeholder', block);
+
+      return `
+        <div class="teaser-card" data-block="${block}">
+          <div class="teaser-text">
+            <div class="teaser-meta">${meta}</div>
+            <h3 class="teaser-title">${title}</h3>
+            <p class="teaser-body">${body}</p>
+            ${soon}
+          </div>
+          <div class="teaser-viz">${viz}</div>
+        </div>`;
+    }
+
+    // === Per-topic visualizations (SVG) ===
+    function renderViz(kind, block) {
+      switch (kind) {
+        case 'linear-scatter': return vizLinearScatter();
+        case 'transform':      return vizTransform();
+        case 'multivariate':   return vizMultivariate();
+        case 'dummies':        return vizDummies();
+        case 'polynomial':     return vizPolynomial();
+        case 'interaction':    return vizInteraction();
+        case 'sigmoid':        return vizSigmoid();
+        case 'mle':            return vizMle();
+        case 'confusion':      return vizConfusion();
+        case 'poisson':        return vizPoisson();
+        case 'dispersion':     return vizDispersion();
+        case 'nb':             return vizNegBin();
+        default:               return vizPlaceholder(block);
+      }
+    }
+
+    // Shared helpers — keep all teaser SVGs on a 280×140 canvas with consistent margins
+    const VW = 280, VH = 140, ML = 22, MR = 12, MT = 10, MB = 22;
+    function vizAxes() {
+      return `
+        <line x1="${ML}" y1="${MT}"     x2="${ML}"   y2="${VH - MB}" stroke="#cbeafb" stroke-width="1.2"/>
+        <line x1="${ML}" y1="${VH - MB}" x2="${VW - MR}" y2="${VH - MB}" stroke="#cbeafb" stroke-width="1.2"/>`;
+    }
+    function vizDots(points, color, opacity = 0.72, r = 3.4, stagger = 0.04) {
+      return points.map((p, i) =>
+        `<circle cx="${p.cx.toFixed(1)}" cy="${p.cy.toFixed(1)}" r="0" style="fill: ${color}" opacity="${opacity}">
+          <animate attributeName="r" from="0" to="${r}" dur="0.3s" begin="${(i * stagger).toFixed(2)}s" fill="freeze"/>
+        </circle>`).join('');
+    }
+    function vizLine(pts, color, delay, width = 2.4) {
+      return `<polyline points="${pts}" style="stroke: ${color}; fill: none" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round" opacity="0">
+        <animate attributeName="opacity" from="0" to="1" dur="0.55s" begin="${delay.toFixed(2)}s" fill="freeze"/>
+      </polyline>`;
+    }
+    // Deterministic pseudo-random, range [-0.5, 0.5)
+    function prand(i, salt = 1) { return ((i * 9301 * salt + 49297) % 233280) / 233280 - 0.5; }
+
+    // ===== Lesson 2: Transformations — exponential curve through scatter =====
+    function vizTransform() {
+      const xToPx = (x) => ML + (x / 10) * (VW - ML - MR);
+      const yToPx = (y) => MT + (1 - y / 11) * (VH - MT - MB);
+      const points = [];
+      for (let i = 0; i < 22; i++) {
+        const x = (i / 21) * 10;
+        const yClean = Math.exp(0.22 * x) - 1;
+        const noise = prand(i, 7) * 1.2;
+        const y = Math.max(0.1, Math.min(10.5, yClean + noise));
+        points.push({ cx: xToPx(x), cy: yToPx(y) });
+      }
+      const curve = [];
+      for (let t = 0; t <= 1; t += 0.025) {
+        const x = t * 10;
+        curve.push(`${xToPx(x).toFixed(1)},${yToPx(Math.exp(0.22 * x) - 1).toFixed(1)}`);
+      }
+      return `<svg viewBox="0 0 ${VW} ${VH}" aria-label="Transformation">
+        ${vizAxes()}
+        ${vizDots(points, 'var(--block-linear-1)')}
+        ${vizLine(curve.join(' '), 'var(--text-title)', 22 * 0.04 + 0.1)}
+      </svg>`;
+    }
+
+    // ===== Lesson 3: Multivariate — two-color scatter with two regression lines =====
+    function vizMultivariate() {
+      const xToPx = (x) => ML + (x / 10) * (VW - ML - MR);
+      const yToPx = (y) => MT + (1 - y / 12) * (VH - MT - MB);
+      const groups = [
+        { color: 'var(--block-linear-1)',  intercept: 9, slope: -0.35, salt: 3 },
+        { color: 'var(--block-linear-2)',  intercept: 3, slope:  0.40, salt: 5 },
+      ];
+      let dots = '', lines = '', i = 0;
+      groups.forEach((g, gi) => {
+        const pts = [];
+        for (let k = 0; k < 11; k++) {
+          const x = 1 + (k / 10) * 8;
+          const y = g.intercept + g.slope * x + prand(k, g.salt) * 1.5;
+          pts.push({ cx: xToPx(x), cy: yToPx(y) });
+        }
+        dots += vizDots(pts.map(p => ({ cx: p.cx, cy: p.cy })), g.color, 0.78, 3.2, 0.035);
+        const lx1 = 1, lx2 = 9;
+        const ly1 = g.intercept + g.slope * lx1;
+        const ly2 = g.intercept + g.slope * lx2;
+        lines += `<line x1="${xToPx(lx1).toFixed(1)}" y1="${yToPx(ly1).toFixed(1)}"
+                        x2="${xToPx(lx1).toFixed(1)}" y2="${yToPx(ly1).toFixed(1)}"
+                        style="stroke: ${g.color}" stroke-width="2.2" stroke-linecap="round" opacity="0">
+          <animate attributeName="opacity" from="0" to="1"        dur="0.05s" begin="${(11 * 0.035 + 0.1 + gi * 0.15).toFixed(2)}s" fill="freeze"/>
+          <animate attributeName="x2"      from="${xToPx(lx1).toFixed(1)}" to="${xToPx(lx2).toFixed(1)}" dur="0.5s"  begin="${(11 * 0.035 + 0.1 + gi * 0.15).toFixed(2)}s" fill="freeze"/>
+          <animate attributeName="y2"      from="${yToPx(ly1).toFixed(1)}" to="${yToPx(ly2).toFixed(1)}" dur="0.5s"  begin="${(11 * 0.035 + 0.1 + gi * 0.15).toFixed(2)}s" fill="freeze"/>
+        </line>`;
+      });
+      return `<svg viewBox="0 0 ${VW} ${VH}" aria-label="Multivariate">
+        ${vizAxes()}
+        ${dots}
+        ${lines}
+      </svg>`;
+    }
+
+    // ===== Lesson 4: Dummies — two parallel regression lines =====
+    function vizDummies() {
+      const xToPx = (x) => ML + (x / 10) * (VW - ML - MR);
+      const yToPx = (y) => MT + (1 - y / 12) * (VH - MT - MB);
+      const SLOPE = -0.55;
+      const groups = [
+        { color: 'var(--block-linear-1)', intercept: 10, salt: 4 },
+        { color: 'var(--block-linear-2)', intercept:  6, salt: 9 },
+      ];
+      let dots = '', lines = '';
+      groups.forEach((g, gi) => {
+        const pts = [];
+        for (let k = 0; k < 11; k++) {
+          const x = 1 + (k / 10) * 8;
+          const y = g.intercept + SLOPE * x + prand(k, g.salt) * 1.2;
+          pts.push({ cx: xToPx(x), cy: yToPx(y) });
+        }
+        dots += vizDots(pts, g.color, 0.78, 3.2, 0.035);
+        const lx1 = 1, lx2 = 9;
+        const ly1 = g.intercept + SLOPE * lx1;
+        const ly2 = g.intercept + SLOPE * lx2;
+        lines += `<line x1="${xToPx(lx1).toFixed(1)}" y1="${yToPx(ly1).toFixed(1)}"
+                        x2="${xToPx(lx1).toFixed(1)}" y2="${yToPx(ly1).toFixed(1)}"
+                        style="stroke: ${g.color}" stroke-width="2.2" stroke-linecap="round" opacity="0">
+          <animate attributeName="opacity" from="0" to="1"        dur="0.05s" begin="${(11 * 0.035 + 0.1 + gi * 0.15).toFixed(2)}s" fill="freeze"/>
+          <animate attributeName="x2"      from="${xToPx(lx1).toFixed(1)}" to="${xToPx(lx2).toFixed(1)}" dur="0.55s" begin="${(11 * 0.035 + 0.1 + gi * 0.15).toFixed(2)}s" fill="freeze"/>
+          <animate attributeName="y2"      from="${yToPx(ly1).toFixed(1)}" to="${yToPx(ly2).toFixed(1)}" dur="0.55s" begin="${(11 * 0.035 + 0.1 + gi * 0.15).toFixed(2)}s" fill="freeze"/>
+        </line>`;
+      });
+      return `<svg viewBox="0 0 ${VW} ${VH}" aria-label="Dummy variables — parallel lines">
+        ${vizAxes()}
+        ${dots}
+        ${lines}
+      </svg>`;
+    }
+
+    // ===== Lesson 5: Polynomial — quadratic curve through scatter =====
+    function vizPolynomial() {
+      const xToPx = (x) => ML + ((x + 3) / 6) * (VW - ML - MR);
+      const yToPx = (y) => MT + (1 - y / 8) * (VH - MT - MB);
+      const points = [];
+      for (let i = 0; i < 22; i++) {
+        const x = -3 + (i / 21) * 6;
+        const yClean = 5 + 0.6 * x - 0.4 * x * x;
+        const y = Math.max(0.2, Math.min(7.8, yClean + prand(i, 11) * 1.4));
+        points.push({ cx: xToPx(x), cy: yToPx(y) });
+      }
+      const curve = [];
+      for (let t = 0; t <= 1; t += 0.025) {
+        const x = -3 + t * 6;
+        const y = 5 + 0.6 * x - 0.4 * x * x;
+        curve.push(`${xToPx(x).toFixed(1)},${yToPx(y).toFixed(1)}`);
+      }
+      return `<svg viewBox="0 0 ${VW} ${VH}" aria-label="Polynomial fit">
+        ${vizAxes()}
+        ${vizDots(points, 'var(--block-linear-1)')}
+        ${vizLine(curve.join(' '), 'var(--text-title)', 22 * 0.04 + 0.1)}
+      </svg>`;
+    }
+
+    // ===== Lesson 6: Interaction — two non-parallel lines (intersecting) =====
+    function vizInteraction() {
+      const xToPx = (x) => ML + (x / 10) * (VW - ML - MR);
+      const yToPx = (y) => MT + (1 - y / 12) * (VH - MT - MB);
+      const groups = [
+        { color: 'var(--block-linear-1)', intercept: 3, slope:  0.6, salt: 2 },
+        { color: 'var(--block-linear-2)', intercept: 9, slope: -0.5, salt: 8 },
+      ];
+      let dots = '', lines = '';
+      groups.forEach((g, gi) => {
+        const pts = [];
+        for (let k = 0; k < 11; k++) {
+          const x = 1 + (k / 10) * 8;
+          const y = g.intercept + g.slope * x + prand(k, g.salt) * 1.0;
+          pts.push({ cx: xToPx(x), cy: yToPx(y) });
+        }
+        dots += vizDots(pts, g.color, 0.78, 3.2, 0.035);
+        const lx1 = 0.5, lx2 = 9.5;
+        const ly1 = g.intercept + g.slope * lx1;
+        const ly2 = g.intercept + g.slope * lx2;
+        lines += `<line x1="${xToPx(lx1).toFixed(1)}" y1="${yToPx(ly1).toFixed(1)}"
+                        x2="${xToPx(lx1).toFixed(1)}" y2="${yToPx(ly1).toFixed(1)}"
+                        style="stroke: ${g.color}" stroke-width="2.2" stroke-linecap="round" opacity="0">
+          <animate attributeName="opacity" from="0" to="1"        dur="0.05s" begin="${(11 * 0.035 + 0.1 + gi * 0.15).toFixed(2)}s" fill="freeze"/>
+          <animate attributeName="x2"      from="${xToPx(lx1).toFixed(1)}" to="${xToPx(lx2).toFixed(1)}" dur="0.55s" begin="${(11 * 0.035 + 0.1 + gi * 0.15).toFixed(2)}s" fill="freeze"/>
+          <animate attributeName="y2"      from="${yToPx(ly1).toFixed(1)}" to="${yToPx(ly2).toFixed(1)}" dur="0.55s" begin="${(11 * 0.035 + 0.1 + gi * 0.15).toFixed(2)}s" fill="freeze"/>
+        </line>`;
+      });
+      return `<svg viewBox="0 0 ${VW} ${VH}" aria-label="Interaction — crossing slopes">
+        ${vizAxes()}
+        ${dots}
+        ${lines}
+      </svg>`;
+    }
+
+    // ===== Lesson 7: Logistic — sigmoid through binary points =====
+    function vizSigmoid() {
+      const xToPx = (x) => ML + ((x + 6) / 12) * (VW - ML - MR);
+      const yToPx = (y) => MT + (1 - y) * (VH - MT - MB - 8);
+      // Binary points: y=0 cluster on left, y=1 cluster on right
+      const points = [];
+      for (let i = 0; i < 12; i++) {
+        const x = -5 + (i / 11) * 4;          // left: x ∈ [-5, -1]
+        const cx = xToPx(x + prand(i, 5) * 0.6);
+        const cy = yToPx(0) + prand(i, 9) * 4;
+        points.push({ cx, cy });
+      }
+      for (let i = 0; i < 12; i++) {
+        const x = 1 + (i / 11) * 4;           // right: x ∈ [1, 5]
+        const cx = xToPx(x + prand(i, 13) * 0.6);
+        const cy = yToPx(1) + prand(i, 17) * 4;
+        points.push({ cx, cy });
+      }
+      const curve = [];
+      for (let t = 0; t <= 1; t += 0.02) {
+        const x = -6 + t * 12;
+        const y = 1 / (1 + Math.exp(-1.4 * x));
+        curve.push(`${xToPx(x).toFixed(1)},${yToPx(y).toFixed(1)}`);
+      }
+      return `<svg viewBox="0 0 ${VW} ${VH}" aria-label="Sigmoid fit">
+        ${vizAxes()}
+        ${vizDots(points, 'var(--block-logistic-1)', 0.78, 3.2, 0.03)}
+        ${vizLine(curve.join(' '), 'var(--text-title)', 24 * 0.03 + 0.1)}
+      </svg>`;
+    }
+
+    // ===== Lesson 8: MLE — concave log-likelihood curve with peak marker =====
+    function vizMle() {
+      const xToPx = (x) => ML + ((x + 4) / 8) * (VW - ML - MR);
+      const yToPx = (y) => MT + (1 - (y + 4) / 5) * (VH - MT - MB);
+      // log-likelihood ≈ -0.5 * (x - 0.7)^2 + 1
+      const peakX = 0.7;
+      const curve = [];
+      for (let t = 0; t <= 1; t += 0.015) {
+        const x = -4 + t * 8;
+        const y = -0.4 * (x - peakX) * (x - peakX) + 1;
+        curve.push(`${xToPx(x).toFixed(1)},${yToPx(y).toFixed(1)}`);
+      }
+      const peakPx  = xToPx(peakX);
+      const peakPxY = yToPx(1);
+      return `<svg viewBox="0 0 ${VW} ${VH}" aria-label="Likelihood curve with peak">
+        ${vizAxes()}
+        ${vizLine(curve.join(' '), 'var(--block-logistic-2)', 0.05, 2.6)}
+        <line x1="${peakPx.toFixed(1)}" y1="${peakPxY.toFixed(1)}" x2="${peakPx.toFixed(1)}" y2="${VH - MB}"
+              stroke="var(--text-title)" stroke-width="1.2" stroke-dasharray="3 3" opacity="0">
+          <animate attributeName="opacity" from="0" to="0.7" dur="0.4s" begin="0.65s" fill="freeze"/>
+        </line>
+        <circle cx="${peakPx.toFixed(1)}" cy="${peakPxY.toFixed(1)}" r="0" style="fill: var(--text-title)">
+          <animate attributeName="r" from="0" to="4.5" dur="0.35s" begin="0.65s" fill="freeze"/>
+        </circle>
+        <text x="${peakPx.toFixed(1)}" y="${(peakPxY - 8).toFixed(1)}" font-size="11" fill="var(--text-title)" text-anchor="middle" font-weight="700" opacity="0">β̂
+          <animate attributeName="opacity" from="0" to="1" dur="0.4s" begin="0.85s" fill="freeze"/>
+        </text>
+      </svg>`;
+    }
+
+    // ===== Lesson 9: Confusion matrix — 2×2 grid (TP/FP/FN/TN) =====
+    function vizConfusion() {
+      // Layout: 2×2 grid centered on canvas
+      const cellW = 78, cellH = 42, gap = 6;
+      const startX = (VW - 2 * cellW - gap) / 2;
+      const startY = (VH - 2 * cellH - gap) / 2 - 4;
+      const cells = [
+        { row: 0, col: 0, label: 'TN', good: true,  count: '142' },
+        { row: 0, col: 1, label: 'FP', good: false, count: '18'  },
+        { row: 1, col: 0, label: 'FN', good: false, count: '12'  },
+        { row: 1, col: 1, label: 'TP', good: true,  count: '88'  },
+      ];
+      let cellsSvg = '';
+      cells.forEach((c, i) => {
+        const x = startX + c.col * (cellW + gap);
+        const y = startY + c.row * (cellH + gap);
+        const fill   = c.good ? 'var(--revealed-bg)'     : 'var(--accent-bg)';
+        const stroke = c.good ? 'var(--revealed-border)' : 'var(--accent)';
+        const tcolor = c.good ? 'var(--revealed-border)' : 'var(--accent-text)';
+        cellsSvg += `<g opacity="0">
+          <rect x="${x}" y="${y}" width="${cellW}" height="${cellH}" rx="6" style="fill: ${fill}; stroke: ${stroke}" stroke-width="1.5"/>
+          <text x="${x + cellW / 2}" y="${y + 18}" text-anchor="middle" font-size="13" font-weight="700" style="fill: ${tcolor}">${c.label}</text>
+          <text x="${x + cellW / 2}" y="${y + 35}" text-anchor="middle" font-size="14" font-weight="600" style="fill: ${tcolor}">${c.count}</text>
+          <animate attributeName="opacity" from="0" to="1" dur="0.35s" begin="${(0.1 + i * 0.12).toFixed(2)}s" fill="freeze"/>
+        </g>`;
+      });
+      return `<svg viewBox="0 0 ${VW} ${VH}" aria-label="Confusion matrix">
+        <text x="${startX - 6}" y="${startY + cellH / 2}"     font-size="9" fill="#666" text-anchor="end" dominant-baseline="middle">actual 0</text>
+        <text x="${startX - 6}" y="${startY + cellH * 1.5 + gap}" font-size="9" fill="#666" text-anchor="end" dominant-baseline="middle">actual 1</text>
+        <text x="${startX + cellW / 2}"     y="${startY - 4}" font-size="9" fill="#666" text-anchor="middle">pred 0</text>
+        <text x="${startX + cellW * 1.5 + gap}" y="${startY - 4}" font-size="9" fill="#666" text-anchor="middle">pred 1</text>
+        ${cellsSvg}
+      </svg>`;
+    }
+
+    // ===== Lesson 10: Poisson PMF — bars =====
+    function vizPoisson() {
+      // Poisson(λ=3.2) PMF, k = 0..10
+      const lam = 3.2;
+      const factorial = (n) => { let r = 1; for (let k = 2; k <= n; k++) r *= k; return r; };
+      const pmf = [];
+      for (let k = 0; k <= 10; k++) {
+        pmf.push(Math.exp(-lam) * Math.pow(lam, k) / factorial(k));
+      }
+      const maxP = Math.max(...pmf);
+      const barW = (VW - ML - MR) / 11 * 0.78;
+      const xToPx = (k) => ML + ((k + 0.5) / 11) * (VW - ML - MR);
+      const yToPx = (p) => MT + (1 - p / (maxP * 1.05)) * (VH - MT - MB);
+      let bars = '';
+      pmf.forEach((p, k) => {
+        const cx = xToPx(k);
+        const cy = yToPx(p);
+        const h  = (VH - MB) - cy;
+        bars += `<rect x="${(cx - barW / 2).toFixed(1)}" y="${(VH - MB).toFixed(1)}" width="${barW.toFixed(1)}" height="0" style="fill: var(--block-poisson-1)" opacity="0.85">
+          <animate attributeName="y"      from="${(VH - MB).toFixed(1)}" to="${cy.toFixed(1)}" dur="0.45s" begin="${(0.05 + k * 0.04).toFixed(2)}s" fill="freeze"/>
+          <animate attributeName="height" from="0" to="${h.toFixed(1)}" dur="0.45s" begin="${(0.05 + k * 0.04).toFixed(2)}s" fill="freeze"/>
+        </rect>`;
+      });
+      return `<svg viewBox="0 0 ${VW} ${VH}" aria-label="Poisson PMF">
+        ${vizAxes()}
+        ${bars}
+        <text x="${VW - MR - 4}" y="${MT + 12}" font-size="10" fill="#666" text-anchor="end">P(Y=k) · Poisson(λ=3.2)</text>
+      </svg>`;
+    }
+
+    // ===== Lesson 11: Dispersion — Poisson vs over-dispersed (NB-like) =====
+    function vizDispersion() {
+      const lam = 3.2;
+      const factorial = (n) => { let r = 1; for (let k = 2; k <= n; k++) r *= k; return r; };
+      const poiss = [];
+      for (let k = 0; k <= 10; k++) {
+        poiss.push(Math.exp(-lam) * Math.pow(lam, k) / factorial(k));
+      }
+      // Over-dispersed: a wider distribution, same mean, hand-tuned
+      const over = [0.18, 0.18, 0.16, 0.13, 0.11, 0.08, 0.06, 0.04, 0.03, 0.02, 0.01];
+      const maxP = Math.max(...poiss, ...over);
+      const barW = (VW - ML - MR) / 11 * 0.34;
+      const xToPx = (k) => ML + ((k + 0.5) / 11) * (VW - ML - MR);
+      const yToPx = (p) => MT + (1 - p / (maxP * 1.05)) * (VH - MT - MB);
+      let bars = '';
+      poiss.forEach((p, k) => {
+        const cx = xToPx(k);
+        const cy = yToPx(p);
+        const h  = (VH - MB) - cy;
+        bars += `<rect x="${(cx - barW - 1).toFixed(1)}" y="${(VH - MB).toFixed(1)}" width="${barW.toFixed(1)}" height="0" style="fill: var(--block-poisson-1)" opacity="0.85">
+          <animate attributeName="y"      from="${(VH - MB).toFixed(1)}" to="${cy.toFixed(1)}" dur="0.4s" begin="${(0.05 + k * 0.03).toFixed(2)}s" fill="freeze"/>
+          <animate attributeName="height" from="0" to="${h.toFixed(1)}" dur="0.4s" begin="${(0.05 + k * 0.03).toFixed(2)}s" fill="freeze"/>
+        </rect>`;
+      });
+      over.forEach((p, k) => {
+        const cx = xToPx(k);
+        const cy = yToPx(p);
+        const h  = (VH - MB) - cy;
+        bars += `<rect x="${(cx + 1).toFixed(1)}" y="${(VH - MB).toFixed(1)}" width="${barW.toFixed(1)}" height="0" style="fill: var(--block-nb-1)" opacity="0.85">
+          <animate attributeName="y"      from="${(VH - MB).toFixed(1)}" to="${cy.toFixed(1)}" dur="0.4s" begin="${(0.25 + k * 0.03).toFixed(2)}s" fill="freeze"/>
+          <animate attributeName="height" from="0" to="${h.toFixed(1)}" dur="0.4s" begin="${(0.25 + k * 0.03).toFixed(2)}s" fill="freeze"/>
+        </rect>`;
+      });
+      return `<svg viewBox="0 0 ${VW} ${VH}" aria-label="Dispersion: Poisson vs over-dispersed">
+        ${vizAxes()}
+        ${bars}
+        <g font-size="9" fill="#666" text-anchor="start">
+          <rect x="${VW - MR - 78}" y="${MT}"      width="8" height="8" style="fill: var(--block-poisson-1)" opacity="0.85"/>
+          <text x="${VW - MR - 66}" y="${MT + 7}">Poisson</text>
+          <rect x="${VW - MR - 78}" y="${MT + 13}" width="8" height="8" style="fill: var(--block-nb-1)" opacity="0.85"/>
+          <text x="${VW - MR - 66}" y="${MT + 20}">over-disp</text>
+        </g>
+      </svg>`;
+    }
+
+    // ===== Lesson 12: Negative Binomial — single PMF with longer tail =====
+    function vizNegBin() {
+      // NB-like PMF, hand-tuned: similar mean to Poisson(3.2) but heavier tail
+      const pmf = [0.16, 0.17, 0.16, 0.13, 0.11, 0.09, 0.07, 0.05, 0.03, 0.02, 0.01];
+      const maxP = Math.max(...pmf);
+      const barW = (VW - ML - MR) / 11 * 0.78;
+      const xToPx = (k) => ML + ((k + 0.5) / 11) * (VW - ML - MR);
+      const yToPx = (p) => MT + (1 - p / (maxP * 1.05)) * (VH - MT - MB);
+      let bars = '';
+      pmf.forEach((p, k) => {
+        const cx = xToPx(k);
+        const cy = yToPx(p);
+        const h  = (VH - MB) - cy;
+        bars += `<rect x="${(cx - barW / 2).toFixed(1)}" y="${(VH - MB).toFixed(1)}" width="${barW.toFixed(1)}" height="0" style="fill: var(--block-nb-1)" opacity="0.85">
+          <animate attributeName="y"      from="${(VH - MB).toFixed(1)}" to="${cy.toFixed(1)}" dur="0.45s" begin="${(0.05 + k * 0.04).toFixed(2)}s" fill="freeze"/>
+          <animate attributeName="height" from="0" to="${h.toFixed(1)}" dur="0.45s" begin="${(0.05 + k * 0.04).toFixed(2)}s" fill="freeze"/>
+        </rect>`;
+      });
+      return `<svg viewBox="0 0 ${VW} ${VH}" aria-label="Negative Binomial PMF">
+        ${vizAxes()}
+        ${bars}
+        <text x="${VW - MR - 4}" y="${MT + 12}" font-size="10" fill="#666" text-anchor="end">P(Y=k) · Negative Binomial</text>
+      </svg>`;
+    }
+
+    // Lesson 01 viz: scatter with downward OLS line (deterministic, animates on render)
+    function vizLinearScatter() {
+      // Deterministic data: y = 12 - 0.6*x + noise, x ∈ [2, 12]
+      const seed = 17;
+      const rand = (i) => {
+        // Tiny LCG so reload looks identical
+        let s = (seed * (i + 1) * 9301 + 49297) % 233280;
+        return s / 233280;
+      };
+      const points = [];
+      for (let i = 0; i < 22; i++) {
+        const x = 2 + (i / 21) * 10 + (rand(i) - 0.5) * 0.7;
+        const yClean = 12 - 0.6 * x;
+        const noise  = (rand(i + 50) - 0.5) * 4.4;
+        const y = Math.max(0.5, Math.min(12.5, yClean + noise));
+        points.push({ x, y });
+      }
+      // SVG coords: 280×140 with margin
+      const W = 280, H = 140, ML = 22, MR = 12, MT = 10, MB = 22;
+      const xToPx = (x) => ML + ((x - 2) / 10) * (W - ML - MR);
+      const yToPx = (y) => MT + (1 - (y / 13)) * (H - MT - MB);
+
+      // Compute OLS for the line endpoints
+      const meanX = points.reduce((s, p) => s + p.x, 0) / points.length;
+      const meanY = points.reduce((s, p) => s + p.y, 0) / points.length;
+      let num = 0, den = 0;
+      for (const p of points) {
+        num += (p.x - meanX) * (p.y - meanY);
+        den += (p.x - meanX) ** 2;
+      }
+      const b1 = num / den;
+      const b0 = meanY - b1 * meanX;
+      const lx1 = 2, lx2 = 12;
+      const ly1 = b0 + b1 * lx1;
+      const ly2 = b0 + b1 * lx2;
+
+      const dotsSvg = points.map((p, i) =>
+        `<circle cx="${xToPx(p.x).toFixed(1)}" cy="${yToPx(p.y).toFixed(1)}" r="0" style="fill: var(--block-linear-1)" opacity="0.72">
+          <animate attributeName="r" from="0" to="3.4" dur="0.3s" begin="${(i * 0.04).toFixed(2)}s" fill="freeze"/>
+        </circle>`).join('');
+
+      const lineDelay = points.length * 0.04 + 0.1;
+      const lineSvg = `
+        <line x1="${xToPx(lx1).toFixed(1)}" y1="${yToPx(ly1).toFixed(1)}"
+              x2="${xToPx(lx1).toFixed(1)}" y2="${yToPx(ly1).toFixed(1)}"
+              style="stroke: var(--text-title)" stroke-width="2.4" stroke-linecap="round" opacity="0">
+          <animate attributeName="opacity" from="0" to="1"        dur="0.05s" begin="${lineDelay.toFixed(2)}s" fill="freeze"/>
+          <animate attributeName="x2"      from="${xToPx(lx1).toFixed(1)}" to="${xToPx(lx2).toFixed(1)}" dur="0.65s" begin="${lineDelay.toFixed(2)}s" fill="freeze"/>
+          <animate attributeName="y2"      from="${yToPx(ly1).toFixed(1)}" to="${yToPx(ly2).toFixed(1)}" dur="0.65s" begin="${lineDelay.toFixed(2)}s" fill="freeze"/>
+        </line>`;
+
+      return `
+        <svg viewBox="0 0 ${W} ${H}" aria-label="Linear regression preview">
+          <line x1="${ML}" y1="${MT}"     x2="${ML}"   y2="${H - MB}" stroke="#cbeafb" stroke-width="1.2"/>
+          <line x1="${ML}" y1="${H - MB}" x2="${W - MR}" y2="${H - MB}" stroke="#cbeafb" stroke-width="1.2"/>
+          <text x="6"  y="${H / 2 + 4}" font-size="10" fill="#666" transform="rotate(-90 6 ${H / 2 + 4})">accidents</text>
+          <text x="${W / 2 - 18}" y="${H - 4}" font-size="10" fill="#666">experience (years)</text>
+          ${dotsSvg}
+          ${lineSvg}
+        </svg>`;
+    }
+
+    // Placeholder for lessons not yet customized — neutral block-colored sketch
+    function vizPlaceholder(block) {
+      const cssVar = `var(--block-${block}-1)`;
+      return `
+        <svg viewBox="0 0 280 140" aria-label="Coming soon">
+          <line x1="22" y1="10" x2="22" y2="118" stroke="#cbeafb" stroke-width="1.2"/>
+          <line x1="22" y1="118" x2="268" y2="118" stroke="#cbeafb" stroke-width="1.2"/>
+          ${[40, 70, 100, 130, 160, 190, 220, 250].map((x, i) =>
+            `<circle cx="${x}" cy="${60 + (i % 3) * 18 - 9}" r="3" style="fill: ${cssVar}" opacity="0.35"/>`
+          ).join('')}
+          <text x="140" y="80" font-size="13" style="fill: ${cssVar}" text-anchor="middle" font-weight="600" opacity="0.7">טיזר בקרוב</text>
+        </svg>`;
+    }
+
+    // Click handling — toggle / swap with a brief opacity fade on swap
+    let activeStripChip = null;
+    let stripUserInteracted = false;
+    const stripTeaser   = document.getElementById('stripTeaser');
+    const stripInner    = stripTeaser.querySelector('.strip-teaser-inner');
+
+    document.querySelectorAll('.strip-chip').forEach(chip => {
+      chip.style.cursor = 'pointer';
+      chip.addEventListener('click', (e) => {
+        if (e.isTrusted) stripUserInteracted = true;
+        const num = parseInt(chip.textContent, 10);
+        if (!num) return;
+
+        // Same chip → close
+        if (activeStripChip === chip) {
+          stripTeaser.classList.remove('open');
+          chip.classList.remove('active');
+          activeStripChip = null;
+          // Clear inner after animation completes (so screen readers don't see stale)
+          setTimeout(() => { if (!stripTeaser.classList.contains('open')) stripInner.innerHTML = ''; }, 450);
+          return;
+        }
+
+        // Different chip while one is open → fade-swap
+        if (activeStripChip) {
+          activeStripChip.classList.remove('active');
+          const card = stripInner.querySelector('.teaser-card');
+          if (card) card.classList.add('swapping');
+          setTimeout(() => {
+            stripInner.innerHTML = renderTeaser(num);
+            const newCard = stripInner.querySelector('.teaser-card');
+            if (newCard) {
+              newCard.classList.add('swapping');
+              requestAnimationFrame(() => requestAnimationFrame(() => {
+                newCard.classList.remove('swapping');
+              }));
+            }
+            chip.classList.add('active');
+            activeStripChip = chip;
+          }, 160);
+          return;
+        }
+
+        // Nothing open → render + open
+        stripInner.innerHTML = renderTeaser(num);
+        chip.classList.add('active');
+        activeStripChip = chip;
+        // Force reflow then add .open so the height transition runs
+        void stripTeaser.offsetHeight;
+        stripTeaser.classList.add('open');
+      });
+    });
+
+    // Auto-open lesson 1 the first time the strip enters the viewport.
+    // Higher threshold + small delay → user sees the chips first, realizes
+    // they're interactive, then lesson 1 auto-opens as a demo.
+    // Skips the trigger if the user already opened a chip themselves.
+    let stripAutoOpened = false;
+    const stripSection = document.querySelector('.strip-section');
+    if (stripSection && 'IntersectionObserver' in window) {
+      const stripObs = new IntersectionObserver((entries) => {
+        entries.forEach((en) => {
+          if (!en.isIntersecting) return;
+          if (stripAutoOpened || stripUserInteracted) return;
+          stripAutoOpened = true;
+          // Brief delay so the strip registers visually before the demo opens
+          setTimeout(() => {
+            if (stripUserInteracted) return;
+            const firstChip = document.querySelector('.strip-chip');
+            if (firstChip) firstChip.click();
+          }, 700);
+        });
+      }, { threshold: 0.7 });
+      stripObs.observe(stripSection);
+    }
 
     // === Hero scatter — generate random data + draw OLS line with stagger animation ===
     function drawScatter() {
