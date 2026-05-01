@@ -496,3 +496,116 @@ body[data-mode="slides"] .slide-side-nav {
 .prev-reminder strong {
   color: var(--text-title);
 }
+
+/* ============================================================
+   Responsive — tablet (≤768px) and phone (≤480px)
+   ============================================================ */
+
+@media (max-width: 768px) {
+  /* Lesson title banner */
+  .lesson-title-banner       { padding: 18px 20px; margin-bottom: 22px; }
+  .lesson-title-banner h1    { font-size: 26px; margin-bottom: 8px; }
+  .lesson-title-banner .subtitle { font-size: 16px; }
+  .lesson-title-banner .pill { font-size: 13px; padding: 4px 10px; margin-top: 10px; }
+
+  /* Section banners (per פרק) */
+  .section-banner            { padding: 10px 14px; margin: 22px 0 12px 0; }
+  .section-banner h2         { font-size: 20px; }
+
+  /* Callouts */
+  .callout                   { padding: 12px 14px; margin: 16px 0; }
+  .callout h3                { font-size: 17px; margin-bottom: 8px; }
+  .callout h4                { font-size: 15px; }
+
+  /* Formula-box: allow horizontal scroll for long expressions */
+  .formula-box {
+    font-size: 16px;
+    padding: 12px 14px;
+    margin: 12px 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Q&A blocks */
+  .qa                        { padding: 10px 14px; margin: 14px 0; }
+  .qa .question              { font-size: 15px; }
+  .qa .toggle-btn            { font-size: 13px; padding: 4px 10px; }
+
+  /* Code-switch (Jupyter handoff): allow wrap */
+  .code-switch {
+    padding: 10px 14px;
+    font-size: 14px;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .code-switch .icon         { font-size: 22px; }
+
+  /* TOC */
+  .toc                       { padding: 12px 16px; margin: 18px 0; }
+  .toc h2                    { font-size: 16px; }
+  .toc li                    { font-size: 14px; }
+
+  /* Tables — allow horizontal scroll on overflow */
+  main table, .callout table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+    font-size: 13px;
+  }
+
+  /* Floating buttons — smaller, closer to edge */
+  .float-btn                 { width: 38px; height: 38px; left: 14px; }
+  .float-btn svg             { width: 17px; height: 17px; }
+  .back-to-top               { bottom: 14px; }
+  .float-cursor              { bottom: 60px; }
+  .float-mode                { bottom: 106px; }
+  .float-toc-btn             { bottom: 152px; }
+
+  .float-toc-panel {
+    bottom: 152px;
+    left: 60px;
+    min-width: 220px;
+    max-width: calc(100vw - 80px);
+    max-height: 60vh;
+  }
+  .float-toc-panel li        { font-size: 14px; }
+
+  /* Slides mode — tighter padding so content actually fits */
+  body[data-mode="slides"] main > section {
+    padding: 32px 18px 64px 18px;
+  }
+
+  /* Slide indicator dots — smaller */
+  .slide-indicator           { padding: 6px 12px; }
+  .slide-indicator .dot      { width: 8px; height: 8px; }
+  .slide-indicator .counter  { font-size: 12px; min-width: 32px; margin: 0 8px; }
+
+  /* Side-nav arrows */
+  .slide-side-nav            { width: 44px; height: 44px; }
+  .slide-side-nav.prev       { right: 12px; }
+  .slide-side-nav.next       { left: 12px; }
+  .slide-side-nav svg        { width: 20px; height: 20px; }
+}
+
+@media (max-width: 480px) {
+  .lesson-title-banner h1    { font-size: 22px; }
+  .lesson-title-banner .subtitle { font-size: 14px; }
+  .lesson-title-banner .pill { font-size: 12px; }
+
+  .section-banner h2         { font-size: 18px; }
+
+  .formula-box               { font-size: 14px; padding: 10px 12px; }
+
+  /* Hide cursor halo button on mobile (no mouse) — re-stack remaining */
+  .float-cursor              { display: none; }
+  .back-to-top               { bottom: 14px; }
+  .float-mode                { bottom: 60px; }
+  .float-toc-btn             { bottom: 106px; }
+  .float-toc-panel           { bottom: 106px; }
+
+  /* Side-nav arrows even smaller on tiny screens */
+  .slide-side-nav            { width: 38px; height: 38px; }
+  .slide-side-nav svg        { width: 17px; height: 17px; }
+}

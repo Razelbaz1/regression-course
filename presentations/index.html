@@ -8,7 +8,7 @@
 <html lang="he" dir="rtl">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=1920, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Regression Course — Safety Management for Engineers</title>
 
   <link rel="stylesheet" href="shared/palette.css">
@@ -743,6 +743,109 @@
       width: 0%;
       background: linear-gradient(90deg, var(--border-banner), var(--text-title));
       border-radius: 2px;
+    }
+
+    /* ============================================================
+       Responsive — tablet (≤768px) + phone (≤480px)
+       ============================================================ */
+    @media (max-width: 768px) {
+      main {
+        max-width: 100%;
+        padding: 18px 16px 48px 16px;
+      }
+
+      /* Hero — stack vertically (text first, scatter below) */
+      .hero {
+        grid-template-columns: 1fr;
+        gap: 22px;
+        padding: 22px 22px;
+        margin-bottom: 28px;
+      }
+      .hero h1            { font-size: 32px; }
+      .hero .subtitle     { font-size: 17px; }
+      .hero .welcome      { font-size: 15px; }
+      .hero .signature    { font-size: 17px; }
+
+      /* Strip — switch to 6-per-row grid */
+      .strip {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 5px;
+      }
+      .strip-chip {
+        flex: none;
+        font-size: 16px;
+        padding: 11px 0;
+      }
+      /* Disable hover-tooltip on touch (interferes with click-to-open) */
+      .strip-chip[data-name]:hover::before { display: none; }
+
+      .legend                 { gap: 10px; flex-wrap: wrap; font-size: 12px; }
+
+      /* Teaser card — stack: text on top, viz below */
+      .teaser-card {
+        grid-template-columns: 1fr;
+        gap: 16px;
+        padding: 16px 18px;
+      }
+      .teaser-title           { font-size: 20px; }
+      .teaser-body            { font-size: 14.5px; }
+      .teaser-viz             { padding: 10px; }
+      .teaser-viz svg         { max-height: 130px; }
+
+      /* Cards grid — smaller minimum so the cards don't feel oversized */
+      .cards-grid             { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
+      .card                   { padding: 18px 20px; }
+      .card .lesson-title     { font-size: 19px; }
+      .card .lesson-goal      { font-size: 14px; min-height: 0; }
+
+      /* Block headers smaller */
+      .block-header           { font-size: 17px; padding-right: 10px; margin: 22px 0 10px 0; }
+      .block-header .block-en { font-size: 13px; }
+
+      /* View toggle smaller */
+      .view-toggle            { margin: 10px 0 18px 0; }
+      .view-toggle button     { padding: 6px 16px; font-size: 13px; }
+
+      /* Background decorations — too busy on small screens, hide them */
+      .bg-deco, .bg-ring      { display: none; }
+      .floating-dot           { display: none; }
+
+      /* Top dev-credit smaller */
+      .dev-credit             { font-size: 12px; letter-spacing: 0.3px; }
+      .dev-credit--top        { padding: 10px 0 2px 0; }
+      .dev-credit--top::after { width: 48px; margin-top: 8px; }
+
+      /* Footer — wraps cleanly */
+      body > footer.lesson-footer {
+        font-size: 12px;
+        padding: 14px 16px;
+        line-height: 1.7;
+      }
+
+      /* Loading overlay — smaller card */
+      .loading-card           { min-width: 280px; padding: 28px 36px 24px 36px; }
+      .loading-scatter        { width: 180px; height: 110px; }
+      .loading-title          { font-size: 19px; }
+      .loading-subtitle       { font-size: 13px; }
+    }
+
+    @media (max-width: 480px) {
+      .hero h1                { font-size: 26px; }
+      .hero .subtitle         { font-size: 15px; }
+
+      /* Strip — 4 per row on tiny screens (3 rows of 4) */
+      .strip                  { grid-template-columns: repeat(4, 1fr); gap: 4px; }
+      .strip-chip             { font-size: 15px; padding: 9px 0; }
+
+      /* Cards grid — single column */
+      .cards-grid             { grid-template-columns: 1fr; }
+
+      /* Hero scatter wrapper smaller padding */
+      .scatter-wrap           { padding: 12px; }
+
+      /* Teaser viz canvas a bit smaller */
+      .teaser-viz svg         { max-height: 110px; }
     }
   </style>
 </head>
