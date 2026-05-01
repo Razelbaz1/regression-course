@@ -1235,13 +1235,21 @@
       }
     }
 
-    // Hook clicks on lesson links and Jupyter links
-    // Strategy: prevent default, show overlay for 3s in current tab,
-    // THEN open the new tab — so the user actually watches the full animation.
+    // Hook clicks on lesson links and Jupyter links.
+    // Desktop strategy: prevent default, show overlay for 2.5s in current tab,
+    // then open the new tab — so the user watches the full animation.
+    // Touch strategy: do nothing — let the browser's native target="_blank" run.
+    // (iOS Safari blocks window.open() from within setTimeout because the user-
+    // gesture token has expired; native link clicks are always allowed.)
+    const isTouchDevice = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+
     document.addEventListener('click', (e) => {
       const mainLink      = e.target.closest('a.card-main-link');
       const secondaryLink = e.target.closest('a.card-secondary-link');
       if (!mainLink && !secondaryLink) return;
+
+      // Touch devices (iPad/iPhone): bail out — let the link open natively.
+      if (isTouchDevice) return;
 
       e.preventDefault();
 
