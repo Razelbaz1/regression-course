@@ -1,0 +1,586 @@
+<!doctype html>
+<!--
+  Lesson 06 — Interactions
+  Aligned with: lesson_plans/lesson_06.md (8 blocks + summary)
+  Notebook anchor: regression-course/lesson6/Tirgul.ipynb (23 cells)
+-->
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lesson 06 — Interactions</title>
+
+  <link rel="stylesheet" href="shared/palette.css">
+  <link rel="stylesheet" href="shared/components.css">
+  <link rel="stylesheet" href="shared/styles.css">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+          onload="renderMathInElement(document.body, {delimiters: [{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}]});"></script>
+</head>
+
+<body>
+
+  <header class="lesson-nav">
+    <a href="lesson_05.html"><bdi dir="ltr">←</bdi> השיעור הקודם: Polynomial + Selection</a>
+    <span class="lesson-name">Lesson 06 — Interactions</span>
+    <a href="lesson_07.html">השיעור הבא: Logistic Regression <bdi dir="ltr">→</bdi></a>
+  </header>
+
+  <main>
+
+    <div class="lesson-title-banner">
+      <h1>Regression Course — Lesson 06</h1>
+      <div class="subtitle">Interactions — כשההשפעה של $X_1$ תלויה ב-$X_2$</div>
+      <span class="pill">פרק: Linear (6/6)</span>
+    </div>
+
+    <div class="prev-reminder">
+      <strong>תזכורת מהשיעור הקודם:</strong> ראינו שמודל פולינומיאלי $\hat Y = b_0 + b_1 x + b_2 x^2 + \dots$ עדיין לינארי בפרמטרים, ש-$R^2$ עולה מונוטונית, ושכדי לבחור מודל בצורה תקפה צריך קריטריון שמעניש מורכבות — AIC, BIC, adjR². ראינו גם שלוש שיטות בחירה (forward/backward/stepwise), והערנו ש-$p$-values אחריהן מוטים.
+    </div>
+
+    <nav class="toc">
+      <h2>תוכן עניינים</h2>
+      <ol>
+        <li><a href="#block-1">פרק 1 — פתיחה ורענון משיעור 05</a></li>
+        <li><a href="#block-2">פרק 2 — מה זה אינטראקציה? המבנה והאינטואיציה</a></li>
+        <li><a href="#block-3">פרק 3 — דאטה: training_hours × machine_type</a></li>
+        <li><a href="#block-4">פרק 4 — מודל אדיטיבי (ולמה לא מספיק)</a></li>
+        <li><a href="#block-5">פרק 5 — מודל עם אינטראקציה</a></li>
+        <li><a href="#block-6">פרק 6 — פירוש $\beta_3$ — שני שיפועים</a></li>
+        <li><a href="#block-7">פרק 7 — F-test ועקרון ההיררכיה</a></li>
+        <li><a href="#block-8">פרק 8 — סיכום בלוק לינארי + גשר ללוגיסטית</a></li>
+        <li><a href="#summary">סיכום + הצצה לשיעור 7</a></li>
+      </ol>
+    </nav>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 1 — Opening & Refresher (cells 0–2)                           -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-1">
+      <div class="section-banner">
+        <h2>פרק 1 — פתיחה ורענון משיעור 05</h2>
+      </div>
+
+      <p>השיעור היום סוגר את <b>בלוק הלינארי</b> — שישה שיעורים שבהם הרחבנו את המודל הבסיסי $\hat Y = b_0 + b_1 X$ בכיוונים שונים. עד עכשיו, כל ההרחבות חלקו <b>הנחה משותפת</b>: ההשפעות של המשתנים המסבירים <b>אדיטיביות</b> — כל משתנה תורם בנפרד, ללא תלות בערכי האחרים.</p>
+
+      <div class="callout">
+        <h3>מאיפה אנחנו ממשיכים</h3>
+        <ol>
+          <li><b>הוספנו רגרסורים מרובים</b> (שיעור 03) — $\hat Y = b_0 + b_1 X_1 + b_2 X_2$. שני קווים מקבילים בכל ציר.</li>
+          <li><b>הוספנו דמיים</b> (שיעור 04) — קטגוריאליים הופכים לעמודות בינאריות. עדיין: אדיטיביות, ההשפעה של דמי $=$ הזזה אנכית של הקו, ללא שינוי בשיפוע.</li>
+          <li><b>הוספנו פולינומיאלי</b> (שיעור 05) — איברי $X^2, X^3$. גמישות פונקציונלית — אבל כל איבר תורם בנפרד.</li>
+          <li><b>היום:</b> שוברים את האדיטיביות. נאפשר ל<b>השפעה של $X_1$ להיות תלויה ב-$X_2$</b>. זה הופך את המודל למסוגל לתפוס תופעות מורכבות יותר — וגם דורש פירוש זהיר.</li>
+        </ol>
+      </div>
+
+      <p>שני מסרי-מפתח שיחזרו לאורך השיעור: <b>(א)</b> אינטראקציה $=$ <i>שיפוע משתנה</i>. הציור הוויזואלי הוא קווים <b>לא מקבילים</b>. <b>(ב)</b> המקדם $\beta_3$ של האינטראקציה הוא <b>תוספת לשיפוע</b>, לא תוספת ל-$Y$ בלבד. נראה זאת מתמטית, אמפירית, וגרפית.</p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תאים 0–2</span> (כותרת + ייבוא ספריות).
+        </span>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 2 — What is interaction? Intuition (cells 4–5)                -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-2">
+      <div class="section-banner">
+        <h2>פרק 2 — מה זה אינטראקציה? המבנה והאינטואיציה</h2>
+      </div>
+
+      <p>נתחיל מהאינטואיציה הוויזואלית. דמיינו דאטה עם <b>שני משתנים מסבירים</b> — $X_1$ ו-$X_2$ — ונחזה את $Y$. אם נציייר את $Y$ כפונקציה של $X_1$, <b>עבור ערכים שונים של $X_2$</b>, אז יש שני תרחישים:</p>
+
+      <ul>
+        <li><b>קווים מקבילים</b> — אין אינטראקציה. השיפוע של $X_1$ זהה לכל ערכי $X_2$. ההבדלים בין הקווים הם רק <i>הזזה אנכית</i>.</li>
+        <li><b>קווים לא מקבילים</b> — יש אינטראקציה. השיפוע של $X_1$ <b>משתנה</b> לפי $X_2$. ערכים גדולים של $X_2$ עושים את הקו תלול יותר (או פחות).</li>
+      </ul>
+
+      <div class="formula-box">
+        $\hat Y = \beta_0 + \beta_1 X_1 + \beta_2 X_2 + \beta_3 X_1 X_2$
+      </div>
+
+      <p style="margin-top:10px;"><b>$\beta_3$ הוא המקדם של איבר המכפלה</b> — הוא היחיד שמכיל את שני המשתנים יחד. אם $\beta_3 = 0$ — חזרה למודל אדיטיבי (קווים מקבילים). אם $\beta_3 \neq 0$ — אינטראקציה (קווים לא מקבילים).</p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תאים 4–5</span> (קווים לא מקבילים $=$ עם אינטראקציה, ואז קווים מקבילים $=$ בלי).
+        </span>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>מה ראינו בגרפים</h3>
+        <ul>
+          <li><b>גרף ראשון (עם אינטראקציה):</b> שלושה ערכים של $X_2$ — $0.25, 0.50, 0.75$. עבור כל אחד, $Y$ כפונקציה של $X_1$. <b>הקווים נפתחים כמו מניפה</b> — ככל ש-$X_2$ גדול יותר, השיפוע תלול יותר. ערכים גדולים של $X_2$ מגבירים את ההשפעה של $X_1$.</li>
+          <li><b>גרף שני (בלי אינטראקציה):</b> אותם שלושה ערכים של $X_2$, אבל בלי איבר המכפלה. <b>הקווים מקבילים</b> — שיפוע אחיד. ההבדל ביניהם הוא רק הזזה אנכית של $3 \cdot X_2$.</li>
+          <li><b>ההבדל החד:</b> מקביל $=$ אדיטיבי. לא מקביל $=$ אינטראקציה. בעין רואים מיד, מה שמקל על אינטואיציה גם בדאטה אמיתי.</li>
+        </ul>
+      </div>
+
+      <div class="callout">
+        <h3>📊 העשרה: הגיאומטריה של אינטראקציה</h3>
+
+        <p>הציור של "שלושה קווים" עובד יפה כש-$X_2$ הוא <b>קטגוריאלי</b> או דיסקרטי. מה קורה כש-$X_2$ עצמו <b>רציף</b>?</p>
+
+        <h4 style="margin-top:14px;">continuous × categorical (המקרה היום)</h4>
+        <p>זה המצב הפשוט. $X_2 \in \{\text{Light}, \text{Heavy}\}$ או $\{0, 1\}$ — שתי קבוצות, שני קווים. <b>מקבילים $=$ אין אינטראקציה. לא מקבילים $=$ יש.</b> זה החלק העיקרי של היום.</p>
+
+        <h4 style="margin-top:14px;">continuous × continuous (כללי יותר)</h4>
+        <p>אין "שתי קבוצות" אלא רצף. הוויזואליזציה הטבעית היא <b>משטח תלת-ממדי</b> $Y(X_1, X_2)$:</p>
+        <ul style="margin:8px 0;">
+          <li><b>בלי אינטראקציה:</b> משטח שטוח-נוטה (plane). השיפוע ב-$X_1$ זהה בכל מקום על המשטח.</li>
+          <li><b>עם אינטראקציה:</b> משטח <b>מעוקל</b> — לדוגמה, "אוכף" (saddle) או "מסולסל". השיפוע משתנה ממקום למקום.</li>
+        </ul>
+
+        <p>חלופה ויזואלית: לחתוך את ה-$X_2$ ל-3 ערכים מייצגים ($Q_1, \text{median}, Q_3$) ולצייר 3 קווים — בדיוק כמו ב-continuous × categorical. זה מה שנעשה ברוב המקרים בפרקטיקה.</p>
+
+        <h4 style="margin-top:14px;">הנקודה הקריטית</h4>
+        <p><b>הצורה הוויזואלית של אינטראקציה היא תמיד "שינוי בשיפוע"</b> — לא משנה אם זה משטח 3D או שני קווים.   <br>זכרו: <i>אם השיפוע של $X_1$ משתנה לפי $X_2$ — יש אינטראקציה.</i></p>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 3 — Data: training_hours × machine_type (cells 7–8)           -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-3">
+      <div class="section-banner">
+        <h2>פרק 3 — דאטה: training_hours × machine_type</h2>
+      </div>
+
+      <div class="callout">
+        <h3>הסיפור (סוף הבלוק הלינארי)</h3>
+        <p>מנהל הבטיחות אסף נתונים על תקלות חודשיות, לפי <code class="ltr">training_hours</code> (שעות הכשרה למפעיל) ולפי $\text{machine\_type} \in \{\text{Light}, \text{Heavy}\}$. הוא מתחיל עם המודל הפשוט: $\hat{\text{incidents}} = b_0 + b_1 \cdot \text{training} + b_2 \cdot \text{is\_heavy}$. תוצאות: $R^2 = 0.82$, $b_1 = -0.51$. מצוין — יותר הכשרה, פחות תקלות.</p>
+        <p style="margin:10px 0 0 0; padding:8px; border-right:3px solid #4a8; background:#f4faf6;"><i>"שעת הכשרה אחת מורידה תקלות ב-$0.51$ — וזה תקף לכל מכונה?"</i> שואל אותו חבר. <i>"או שלמכונה כבדה ההכשרה שווה יותר, ולמכונה קלה — פחות?"</i></p>
+      </div>
+
+      <div class="qa">
+        <div class="question">שאלה לכיתה: <b>תחשבו על המצב — "השפעת שעות הכשרה על תקלות, בנפרד לפי סוג מכונה" — האם הגיוני שתהיה הבדל בשיפועים? למה כן, או למה לא? נחשו לפני שאנחנו רואים את הדאטה.</b></div>
+      </div>
+
+      <p style="margin-top:14px;">לפני שנפתח את הדאטה — האינטואיציה הפיזיקלית. מכונה כבדה: יותר כוחות, יותר מורכבות, יותר נקודות כשל פוטנציאליות. כל שעת הכשרה <i>אולי</i> מורידה את הסיכון יותר, כי יש יותר מה ללמוד ולשפר. מכונה קלה: פחות מורכבת, פחות מקום לטעות, וגם פחות "מקום לשיפור". זה חיזוי <b>פיזיקלי</b> — נראה אם הדאטה מאשש.</p>
+
+      <p><b>הדאטה הוא סינתטי</b> — בנינו אותו עם מודל אמת ידוע: <span style="white-space:nowrap;">$y = 8 - 0.3 \cdot t + 4 \cdot h - 0.5 \cdot t \cdot h + \varepsilon$</span> כאשר $t = \text{training}$ ו-$h = \mathbb{1}[\text{Heavy}]$. כלומר: Light מתחיל ב-$8$ תקלות בבסיס, ההכשרה מורידה ב-$0.3$ לשעה. Heavy מתחיל ב-$12$, ההכשרה מורידה ב-<b>$0.8$ לשעה — קצב כמעט פי 3</b>. $\varepsilon \sim N(0, 1.5^2)$, $n = 80$, $\text{seed}=42$.</p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תאים 7–8</span> (יצירת הדאטה + scatter colored by machine_type).
+        </span>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>מה ראינו ב-scatter</h3>
+        <ul>
+          <li><b>ענן כחול (Light, $\sim 40$ נקודות):</b> יורד בשיפוע מתון. מ-$\sim 8$ תקלות בערך $t=0$ עד $\sim 0$ סביב $t=30$.</li>
+          <li><b>ענן אדום (Heavy, $\sim 40$ נקודות):</b> מתחיל גבוה יותר (סביב $12$), אבל יורד <b>תלול יותר</b>. בקצה הימני (training $=40$) הוא נופל גם <i>מתחת</i> ל-Light.</li>
+          <li><b>בעין רואים: שני שיפועים שונים.</b> לא צריך מתמטיקה כדי לזהות — הקווים שמובלעים בענני הנקודות לא מקבילים.</li>
+        </ul>
+        <p style="margin:8px 0 0 0;">השאלה הקרובה: <b>מודל אדיטיבי "תמים", שלא יודע על האפשרות של אינטראקציה — מה הוא יחזיר?</b></p>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 4 — Additive model (cells 9–10)                                -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-4">
+      <div class="section-banner">
+        <h2>פרק 4 — מודל אדיטיבי (ולמה לא מספיק)</h2>
+      </div>
+
+      <p>נתחיל ממודל ה"ברירת מחדל" — <b>אדיטיבי, ללא אינטראקציה</b>. אנחנו מכלילים את שני המשתנים בנפרד, וה-OLS עושה את שלו.</p>
+
+      <div class="formula-box">
+        $\hat{\text{incidents}} = b_0 + b_1 \cdot \text{training} + b_2 \cdot \mathbb{1}[\text{Heavy}]$
+      </div>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תא 10</span> (fit אדיטיבי + summary + הצגת 2 קווים מקבילים על ה-scatter).
+        </span>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>מה ראינו ב-summary ובגרף</h3>
+        <ul>
+          <li><b>$R^2 = 0.816$</b> — לא רע. נראה כאילו המודל "תופס משהו".</li>
+          <li><b>training_hours: $b_1 = -0.511$</b>, $t = -15.66$, $p < 0.001$. סטטיסטית מובהק.</li>
+          <li><b>is_heavy: $b_2 = -6.00$</b> (כש-Heavy הוא baseline בדמי), $p < 0.001$. גם מובהק.</li>
+          <li><b>בגרף:</b> שני קווים <b>מקבילים</b> — בדיוק כפי שניבא המודל ה-אדיטיבי. כחול ל-Light, אדום ל-Heavy. אותו שיפוע, רק הזזה אנכית.</li>
+        </ul>
+      </div>
+
+      <div class="callout">
+        <h3>הבעיה</h3>
+        <p>$R^2 = 0.82$ מסתיר בעיה מבנית. <b>השיפוע $-0.511$ לא נכון לאף קבוצה.</b> האמת:</p>
+        <ul style="margin:6px 0;">
+          <li>Light slope: $-0.30$ (האמת).</li>
+          <li>Heavy slope: $-0.80$ (האמת).</li>
+          <li>Additive estimate: $-0.51$ — <b>ממוצע פסול</b> בין השניים.</li>
+        </ul>
+        <p style="margin-top:8px;">אם אני מנהל הבטיחות ואני משתמש במודל הזה כדי לקבל החלטה — "כל שעת הכשרה מורידה $0.5$ תקלות" — אני אקבע מדיניות הכשרה <b>אחידה</b>, ואטעה. למכונות הכבדות הכשרה שווה $\sim 60\%$ יותר; למכונות הקלות $\sim 40\%$ פחות. <b>המודל אומר לי דבר אחד; האמת היא משהו אחר.</b></p>
+        <p style="margin-top:8px;"><b>הלקח:</b> $R^2$ גבוה לא מבטיח שהמודל תופס את המבנה. צריך לבדוק <b>שיפועים פר-קבוצה</b>, residuals לפי קבוצה, או — מה שנעשה היום — <b>להכליל את האינטראקציה ולראות אם היא מובהקת</b>.</p>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 5 — Model with interaction (cells 11–13)                       -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-5">
+      <div class="section-banner">
+        <h2>פרק 5 — מודל עם אינטראקציה</h2>
+      </div>
+
+      <p><b>הרעיון:</b> במקום לסמוך על אדיטיביות, אנחנו <b>מאפשרים</b> למודל לתפוס שני שיפועים. הדרך — להוסיף עמודה חדשה ל-$X$: <b>המכפלה</b> $\text{training} \cdot \text{is\_heavy}$.</p>
+
+      <div class="formula-box">
+        $\hat{\text{incidents}} = b_0 + b_1 \cdot \text{training} + b_2 \cdot \mathbb{1}[\text{Heavy}] + b_3 \cdot \text{training} \cdot \mathbb{1}[\text{Heavy}]$
+      </div>
+
+      <p style="margin-top:10px;">עמודת המכפלה נראית כך: עבור <b>Light</b> (כאשר $\mathbb{1}[\text{Heavy}] = 0$) — כל הערכים $0$. עבור <b>Heavy</b> (כאשר $\mathbb{1}[\text{Heavy}] = 1$) — הערכים שווים ל-$\text{training}$ עצמו. כך, $b_3$ "מופעל" רק למכונות הכבדות, ומאפשר להן שיפוע שונה.</p>
+
+      <div class="qa">
+        <div class="question">שאלה לכיתה: <b>במודל עם אינטראקציה $\hat Y = \beta_0 + \beta_1 X_1 + \beta_2 X_2 + \beta_3 X_1 X_2$ — אם $\beta_3 = 0$, מה זה אומר על המודל? איך הוא מתפרק?</b></div>
+        <button class="toggle-btn">גלה תשובה</button>
+        <div class="answer">
+          <p><b>המודל מתפרק למודל אדיטיבי:</b> $\hat Y = \beta_0 + \beta_1 X_1 + \beta_2 X_2$. השפעת $X_1$ אינה תלויה ב-$X_2$.</p>
+          <p style="margin-top:8px;"><b>במילים אחרות:</b> $\beta_3 = 0 \;\;$<bdi dir="ltr">⇔</bdi>$\;\;$ <b>שיפוע אחיד</b> לכל ערכי $X_2$, כלומר <b>קווים מקבילים</b> בציור.</p>
+          <p style="margin-top:8px;"><b>הסיכום: אדיטיביות $=$ העדר אינטראקציה.</b> אם הדאטה אומר ש-$\beta_3 \approx 0$ סטטיסטית — אין צורך להוסיף את האיבר. אם $\beta_3$ מובהק שונה מ-$0$ — האינטראקציה אמיתית, וחייבים אותה במודל.</p>
+        </div>
+      </div>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תאים 12–13</span> (בניית עמודת המכפלה $+$ fit עם אינטראקציה $+$ summary $+$ הצגה של 2 קווים לא-מקבילים).
+        </span>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>מה ראינו ב-summary</h3>
+        <ul>
+          <li><b>$R^2 = 0.955$</b> — <b>קפיצה של 14 נקודות אחוז</b> מ-$0.82$. ההבדל דרמטי. מה שהיה מוסבר ב-$82\%$ עכשיו מוסבר ב-$95.5\%$.</li>
+          <li><b>const: $b_0 = 7.88$</b> — קרוב לאמת ($8$).</li>
+          <li><b>training_hours: $b_1 = -0.297$</b> — קרוב לאמת ($-0.3$). <b>זה השיפוע של Light בלבד.</b></li>
+          <li><b>is_heavy: $b_2 = 4.32$</b> — קרוב לאמת ($4$). <b>זה ההפרש בקבוע (Heavy בסיס $-$ Light בסיס) בלבד.</b></li>
+          <li><b>train_x_heavy: $b_3 = -0.503$</b> — קרוב לאמת ($-0.5$). <b>זה ההפרש בשיפוע</b> בין Heavy ל-Light.</li>
+          <li><b>כל $p$-values $< 0.001$.</b> כל המקדמים מובהקים — לרבות $\beta_3$. האינטראקציה אמיתית.</li>
+        </ul>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>מה ראינו בגרף</h3>
+        <ul>
+          <li><b>הקווים <i>לא מקבילים</i></b> — בדיוק כפי שעין ראתה ב-scatter המקורי. השיפוע של Heavy תלול בהרבה.</li>
+          <li><b>הקווים מצטלבים</b> סביב <span style="white-space:nowrap;">$\text{training} \approx 30$</span>. לפני נקודה זו, Heavy גבוה מ-Light. אחריה — Heavy נמוך מ-Light. <b>זה חוסר-אדיטיביות בפעולה</b>: היחס בין הקבוצות אינו קבוע — הוא תלוי ברמת $X_1$.</li>
+          <li><b>הקריאה הפדגוגית:</b> $R^2 = 0.955$ נראה רק כמספר; הגרף הוא הוכחה. המודל החדש <i>תופס</i> את מה שהמודל האדיטיבי החמיץ.</li>
+        </ul>
+      </div>
+
+      <div class="callout">
+        <h3>📊 העשרה: אינטראקציה <bdi dir="ltr">≠</bdi> multicollinearity</h3>
+
+        <p>שאלה שעולה לסטודנט בשיעור 03: "$X_1 X_2$ נראה מתואם עם $X_1$ ועם $X_2$. ה-VIF יוצא גבוה. <b>זה לא multicollinearity?</b>" התשובה: <b>זה <i>מבני</i>, לא אמיתי.</b></p>
+
+        <h4 style="margin-top:14px;">VIF בדאטה שלנו</h4>
+
+        <table style="margin:10px 0; border-collapse:collapse; width:100%; max-width:680px;">
+          <thead>
+            <tr style="background:#eaf6ff;">
+              <th style="padding:8px 12px; border:1px solid #aac; text-align:right;">משתנה</th>
+              <th style="padding:8px 12px; border:1px solid #aac; text-align:center;">VIF (בלי centering)</th>
+              <th style="padding:8px 12px; border:1px solid #aac; text-align:center;">VIF (אחרי centering)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="padding:8px 12px; border:1px solid #aac; text-align:right;">training</td>
+              <td style="padding:8px 12px; border:1px solid #aac; text-align:center;">$1.753$</td>
+              <td style="padding:8px 12px; border:1px solid #aac; text-align:center;">$1.753$</td>
+            </tr>
+            <tr>
+              <td style="padding:8px 12px; border:1px solid #aac; text-align:right;">is_heavy</td>
+              <td style="padding:8px 12px; border:1px solid #aac; text-align:center;"><b>$4.657$</b></td>
+              <td style="padding:8px 12px; border:1px solid #aac; text-align:center;">$1.007$</td>
+            </tr>
+            <tr>
+              <td style="padding:8px 12px; border:1px solid #aac; text-align:right;">train $\times$ heavy</td>
+              <td style="padding:8px 12px; border:1px solid #aac; text-align:center;"><b>$5.668$</b></td>
+              <td style="padding:8px 12px; border:1px solid #aac; text-align:center;">$1.750$</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h4 style="margin-top:14px;">מה קורה?</h4>
+        <p>במקור, $\text{training} \in [0, 40]$ — כולו חיובי. לכן $\text{train} \cdot \text{heavy}$ <i>גם הוא</i> חיובי כש-$\text{heavy} = 1$. ב-Light הערך $0$, ב-Heavy הערך שווה ל-$\text{training}$. <b>זה לא תלות אמיתית בין רגרסורים</b> — זה רק עניין של סקייל.</p>
+
+        <p><b>הפתרון: centering.</b> נחליף את $\text{training}$ ב-$\text{training} - \overline{\text{training}}$. עכשיו המשתנה ממוקם סביב $0$, וה-$\text{train\_c} \cdot \text{heavy}$ הוא כבר לא "סתם נטייה לחיובי" — הוא ערכים סביב $0$. ה-VIF המבני נעלם.</p>
+
+        <h4 style="margin-top:14px;">השאלה הקריטית: האם $\beta_3$ משתנה?</h4>
+        <p><b>לא.</b> $\beta_3 = -0.503$ <i>זהה לחלוטין</i> לפני ואחרי centering. centering משנה רק את $\beta_0, \beta_1, \beta_2$ — כי הם מבטאים ערכים ב-baseline שזז ל-$\overline{\text{training}}$ במקום ל-$0$. אבל <b>האינטראקציה היא invariant</b> לטרנספורמציות לינאריות של $X_1$.</p>
+
+        <h4 style="margin-top:14px;">כלל אצבע</h4>
+        <p>VIF גבוה במודל עם אינטראקציה — <b>למרכז ובדקו שוב.</b></p>
+        <ul style="margin:6px 0;">
+          <li>אם ה-VIF המרוכז עדיין גבוה — multicollinearity אמיתית, כדאי לחשוב על הסרת משתנה.</li>
+          <li>אם הוא יורד — היתה רק תופעה מבנית. אין בעיה מהותית, המודל תקף.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 6 — Interpreting beta_3 + cont×cont extension (cells 14–17)    -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-6">
+      <div class="section-banner">
+        <h2>פרק 6 — פירוש $\beta_3$ — שני שיפועים</h2>
+      </div>
+
+      <p>זה הצומת הקונספטואלי של השיעור. <b>$\beta_3$ אינו "תוספת ל-$Y$"; הוא תוספת לשיפוע.</b> כדי להבין למה — נלך לנגזרת.</p>
+
+      <div class="formula-box">
+        $\dfrac{\partial Y}{\partial X_1} = \beta_1 + \beta_3 X_2$
+      </div>
+
+      <p style="margin-top:10px;"><b>השיפוע של $X_1$ <i>תלוי ב-$X_2$</i>.</b> זה לא מקדם אחד — זה <i>פונקציה</i> של $X_2$. שני המקרים שלנו:</p>
+      <ul style="margin:8px 0;">
+        <li>עבור $X_2 = 0$ (Light): $\text{slope} = \beta_1$.</li>
+        <li>עבור $X_2 = 1$ (Heavy): $\text{slope} = \beta_1 + \beta_3$.</li>
+      </ul>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תא 15</span> (חישוב והדפסת שני השיפועים בנפרד).
+        </span>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>מה ראינו בפלט</h3>
+        <ul>
+          <li><b>Light machines</b> — שיפוע training $-0.30$:
+            $$\hat{\text{incidents}} = 7.88 - 0.30 \cdot \text{training}$$
+          </li>
+          <li><b>Heavy machines</b> — שיפוע training $-0.80$:
+            $$\hat{\text{incidents}} = 12.20 - 0.80 \cdot \text{training}$$
+          </li>
+          <li><b>ההפרש בשיפועים:</b> $b_3 = -0.80 - (-0.30) = -0.50$ — בדיוק המקדם של איבר האינטראקציה.</li>
+          <li><b>שני "מודלים קטנים" מובלעים במודל אחד.</b> מודל האינטראקציה <b>שווה ערך</b> לשני המודלים האלה רצים בנפרד, אך נותן לנו גם <b>F-test פורמלי</b> לבדיקת ההבדל ביניהם.</li>
+        </ul>
+      </div>
+
+      <div class="callout">
+        <h3>📊 העשרה: הנגזרת — איך מקבלים שני שיפועים ממודל אחד</h3>
+
+        <p>בואו נעבור על הקלאוט בזהירות. המודל:</p>
+
+        <div class="formula-box">
+          $\hat Y = \beta_0 + \beta_1 X_1 + \beta_2 X_2 + \beta_3 X_1 X_2$
+        </div>
+
+        <p style="margin-top:10px;"><b>שלב 1 — נגזרת ביחס ל-$X_1$.</b> מטפלים ב-$X_2$ כקבוע ("ביחס לחתך אופקי בערך $X_2$ נתון"):</p>
+
+        <div class="formula-box" style="font-size:17px;">
+          $\dfrac{\partial Y}{\partial X_1} = \beta_1 + \beta_3 X_2$
+        </div>
+
+        <p style="margin-top:10px;"><b>שלב 2 — הצבת ערכים של $X_2$.</b></p>
+        <ul style="margin:8px 0;">
+          <li>עבור <b>$X_2 = 0$ (Light):</b> השיפוע הוא $\beta_1 + \beta_3 \cdot 0 = \beta_1 = -0.30$.</li>
+          <li>עבור <b>$X_2 = 1$ (Heavy):</b> השיפוע הוא $\beta_1 + \beta_3 \cdot 1 = -0.30 + (-0.50) = -0.80$.</li>
+        </ul>
+
+        <h4 style="margin-top:14px;">סימטריה: הנגזרת לכיוון השני</h4>
+        <p>באותו אופן, $\dfrac{\partial Y}{\partial X_2} = \beta_2 + \beta_3 X_1$. כלומר, <b>ההבדל בין Heavy ל-Light <i>גם הוא</i> משתנה לפי $X_1$.</b></p>
+
+        <ul style="margin:8px 0;">
+          <li><b>ב-$\text{training} = 0$:</b> Heavy גבוה מ-Light ב-$\beta_2 = 4.32$ תקלות.</li>
+          <li><b>ב-$\text{training} = 40$:</b> Heavy גבוה מ-Light ב-$\beta_2 + 40 \beta_3 = 4.32 + 40 \cdot (-0.50) = -15.7$. <i>כלומר, Heavy נמוך מ-Light ב-$15.7$.</i></li>
+        </ul>
+
+        <p>זה למה הקווים <b>מצטלבים</b> בגרף. בהתחלה (training נמוך), Heavy גבוה. ככל ש-training עולה, Heavy יורד מהר יותר. מתישהו הם נחתכים. אחרי החיתוך — Heavy נמוך.</p>
+
+        <h4 style="margin-top:14px;">הלקח המעשי</h4>
+        <p><b>אם יש אינטראקציה — אסור לדבר על "השיפוע של $X_1$" בלי לציין באיזה $X_2$.</b> הביטוי הנכון: "השיפוע של $X_1$ <i>בהינתן</i> $X_2 = c$, שווה ל-$\beta_1 + \beta_3 c$." בדאטה שלנו: "השיפוע של training למכונות קלות הוא $-0.30$; למכונות כבדות הוא $-0.80$."</p>
+
+        <p style="margin-top:10px;"><b>טעות נפוצה לסטודנט:</b> רואה את $b_1 = -0.297$ ב-<code class="ltr">summary()</code> ואומר "כל שעת הכשרה מורידה תקלות ב-$0.30$." זה <b>נכון רק ל-Light</b> (ה-baseline). ל-Heavy זה $-0.80$. <i>תמיד לזכור: כשיש אינטראקציה, ה-main effect הוא "שיפוע ב-baseline group" בלבד.</i></p>
+      </div>
+
+      <h3 style="margin-top:24px;">הרחבה: continuous × continuous — אותה מכניקה, $X_2$ רציף</h3>
+
+      <p>עד עכשיו $X_2$ היה <b>קטגוריאלי</b> (Light/Heavy) — שתי קבוצות, שני שיפועים. אבל הנוסחה $\dfrac{\partial Y}{\partial X_1} = \beta_1 + \beta_3 X_2$ עובדת <b>זהה</b> כש-$X_2$ רציף. ההבדל היחיד: במקום שני שיפועים נפרדים — יש <b>שיפוע שונה לכל ערך</b> של $X_2$.</p>
+
+      <p>נדגים על דאטה synthetic חדש קטן ($n = 60$): <code class="ltr">training_hours</code> (רציף) × <code class="ltr">machine_age</code> (רציף, בשנים) <bdi dir="ltr">→</bdi> <code class="ltr">incidents</code>. הסיפור הפיזיקלי: מכונה ישנה דורשת תפעול בזהירות מוגברת, ולכן <b>הכשרה למפעיל שלה מורידה תקלות במידה גדולה יותר</b>.</p>
+
+      <div class="formula-box">
+        $\hat{\text{incidents}} = \beta_0 + \beta_1 \cdot \text{training} + \beta_2 \cdot \text{age} + \beta_3 \cdot \text{training} \cdot \text{age}$
+      </div>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תאים 16–17</span> (fit cont×cont $+$ ויזואליזציה ב-3 ערכי גיל).
+        </span>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>מה ראינו</h3>
+        <ul>
+          <li><b>summary():</b> $R^2 = 0.966$, $\beta_1 = -0.228$ (training), $\beta_2 = 0.350$ (age), <b>$\beta_3 = -0.017$</b> (train $\times$ age). כל $p < 0.001$.</li>
+          <li><b>פירוש $\beta_3$ ברציף:</b> לכל שנה נוספת של גיל המכונה, השיפוע של training נהיה <b>$-0.017$ יותר שלילי</b>. אין יותר "שני שיפועים" — יש <i>פונקציה רציפה</i> של גיל. מכונה חדשה (גיל $2.5$): שיפוע <span style="white-space:nowrap;">$\approx -0.27$.</span> מכונה ישנה (גיל $17.5$): שיפוע <span style="white-space:nowrap;">$\approx -0.52$.</span></li>
+          <li><b>בגרף:</b> בחרנו 3 ערכים מייצגים של גיל ($2.5$, $10$, $17.5$). <b>הקווים לא מקבילים</b> — אותו דפוס וויזואלי שראינו בקטגוריאלי, רק שהפעם בחרנו את ה-3 ערכים <i>אנחנו</i> (snapshots), לא שתי קבוצות אמיתיות בדאטה.</li>
+          <li><b>המכניקה זהה.</b> ב-statsmodels, גם cont $\times$ cat וגם cont $\times$ cont נבנים אותו דבר: עמודה נוספת שווה ל-$X_1 \cdot X_2$. summary, $\beta_3$, F-test — הכל עובד באופן זהה.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 7 — F-test and hierarchy principle (cells 18–19)               -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-7">
+      <div class="section-banner">
+        <h2>פרק 7 — F-test ועקרון ההיררכיה</h2>
+      </div>
+
+      <p>ראינו שה-$R^2$ קופץ מ-$0.82$ ל-$0.955$. ראינו את $b_3 = -0.503$ עם $p < 0.001$ ב-<code class="ltr">summary()</code>. ראינו שהקווים לא מקבילים. כל אלה ראיות. אבל יש <b>מבחן פורמלי</b> שמשווה את שני המודלים יחד.</p>
+
+      <div class="callout">
+        <h3>F-test למודלים מקוננים (nested models)</h3>
+        <p>שני המודלים שלנו — אדיטיבי ועם-אינטראקציה — הם <b>מקוננים</b>: האדיטיבי הוא תת-קבוצה של עם-האינטראקציה (אותם משתנים, פלוס $X_1 X_2$). זה מאפשר לעשות <b>F-test של מודלים מקוננים</b>:</p>
+
+        <div class="formula-box" style="font-size:17px;">
+          $F = \dfrac{(SSR_{\text{small}} - SSR_{\text{large}}) / q}{SSR_{\text{large}} / (n - p_{\text{large}})}$
+        </div>
+
+        <p style="margin-top:10px;">$q$ הוא מספר האיברים שנוספו (כאן: $q = 1$). הסטטיסטיקה $F$ מתפלגת לפי $F_{q, n-p_{\text{large}}}$ תחת $H_0: \beta_3 = 0$. ב-statsmodels זה מובנה: <code class="ltr">m_int.compare_f_test(m_add)</code>.</p>
+      </div>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תא 19</span> (<code class="ltr">compare_f_test</code>).
+        </span>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>מה ראינו ב-output</h3>
+        <ul>
+          <li><b>$F = 233.26$.</b> ערך גבוה מאוד.</li>
+          <li><b>$p = 7.21 \times 10^{-25}$.</b> קטסטרופלי מובהק.</li>
+          <li><b>$\Delta df = 1$</b> — איבר אחד נוסף (האינטראקציה).</li>
+          <li><b>המסקנה:</b> דוחים $H_0: \beta_3 = 0$ בכל רמת מובהקות סבירה. <b>המודל עם אינטראקציה מובהק על פני האדיטיבי.</b> זה הופך את ההכללה של $\beta_3$ למחויבת — לא רק אופציונלית.</li>
+        </ul>
+      </div>
+
+      <p>אבל יש מלכודת אחרונה. מה אם מישהו, בניסיון לפשט את המודל, יציע <b>להוריד את ה-main effects ולשמור רק את האינטראקציה</b>? <span style="white-space:nowrap;">$\hat Y = b_0 + b_3 X_1 X_2$</span>?</p>
+
+      <div class="qa">
+        <div class="question">שאלה לכיתה: <b>נניח אני בונה מודל $\hat Y = \beta_0 + \beta_3 X_1 X_2$ — רק האיבר המוכפל, בלי $X_1$ ו-$X_2$ עצמם. מה הסיכון? למה זה ישבר?</b></div>
+        <button class="toggle-btn">גלה תשובה</button>
+        <div class="answer">
+          <p><b>הפרת עקרון ההיררכיה (hierarchy principle).</b> כש-$X_1$ ו-$X_2$ לא נמצאים במודל בנפרד, המקדם $\beta_3$ "בולע" שני סוגי אפקטים יחד:</p>
+          <ol style="margin:6px 0;">
+            <li><b>main effects אמיתיים</b> של $X_1$ ושל $X_2$ — שלא מודלו בנפרד אז הם "נדחפים" לתוך $\beta_3$.</li>
+            <li><b>אינטראקציה אמיתית</b> — מה שבאמת תיארנו ב-$\beta_3$.</li>
+          </ol>
+          <p style="margin-top:8px;"><b>התוצאה:</b> אי-אפשר להבחין ביניהם. $\beta_3$ הופך לערבוב לא-מזוהה (unidentified) של אפקטים שונים.</p>
+          <p style="margin-top:8px;"><b>בעיה נוספת:</b> ה-baseline. כש-$X_1 = 0$ או $X_2 = 0$, המכפלה $X_1 X_2 = 0$, וכל מה שנשאר הוא $\beta_0$. <b>לא ניתן לתאר את ההתנהגות של $Y$ עצמו ביחס ל-$X_1$ או ל-$X_2$ בנפרד</b> — אין מקדם שמתאר את זה.</p>
+          <p style="margin-top:8px;"><b>המסקנה (חוק יסוד):</b> <b>לעולם לא לכלול אינטראקציה $X_1 X_2$ בלי שני המשתנים העיקריים $X_1$ ו-$X_2$.</b> זה <b>עקרון ההיררכיה</b> — אם איבר מסדר גבוה כלול, חייבים גם את כל מרכיביו ב-סדר נמוך.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 8 — Closing & exercise (cells 20–22)                           -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-8">
+      <div class="section-banner">
+        <h2>פרק 8 — סיכום בלוק לינארי + גשר ללוגיסטית</h2>
+      </div>
+
+      <p>סיימנו את <b>הבלוק הלינארי</b> — שישה שיעורים, אותו מודל בליבה, הרחבות לכל כיוון. נסכם ב-3 מסרים של היום, נסקור את כל הבלוק, ונציץ לוגיסטית.</p>
+
+      <div class="callout callout--accent">
+        <h3>3 נקודות לקחת מהיום (Interactions)</h3>
+        <ol>
+          <li><b>אינטראקציה $=$ שיפוע משתנה.</b> אם ההשפעה של $X_1$ על $Y$ תלויה ב-$X_2$ — הקווים לא מקבילים. הביטוי המתמטי: איבר מכפלה $\beta_3 X_1 X_2$ במודל.</li>
+          <li><b>$\beta_3$ הוא תוספת לשיפוע, לא תוספת ל-$Y$.</b> הנגזרת $\partial Y / \partial X_1 = \beta_1 + \beta_3 X_2$ נותנת שני שיפועים — אחד ל-$X_2 = 0$ ואחד ל-$X_2 = 1$. במודל אחד מקנן זוג מודלים נפרדים.</li>
+          <li><b>עקרון ההיררכיה:</b> אם כוללים $X_1 X_2$, חובה לכלול גם $X_1$ ו-$X_2$. בנוסף, F-test על $\beta_3$ הוא הדרך הפורמלית לבדוק אם האינטראקציה מובהקת.</li>
+        </ol>
+      </div>
+
+      <div class="qa">
+        <div class="question">
+          <b>תרגיל קצר לכיתה:</b> בנושאי המודלים שאתם רואים בתא 21 של המחברת — איזה משפט נכון?
+          <ol style="margin:8px 0;">
+            <li>השיפוע של training במודל האדיטיבי הוא $-0.5$ אז זה גם השיפוע של Heavy.</li>
+            <li>במודל האינטראקציה, השיפוע של Heavy הוא $b_1 + b_3$ ולא $b_1 + b_2 + b_3$.</li>
+            <li>אם נמרכז את training, $b_3$ יעלם.</li>
+            <li>F-test בין שני המודלים ייתן $df = 2$.</li>
+          </ol>
+        </div>
+        <button class="toggle-btn">גלה תשובה</button>
+        <div class="answer">
+          <p><b>התשובה הנכונה: (2).</b> במודל האינטראקציה, השיפוע של Heavy מתקבל מהנגזרת $\partial Y / \partial X_1 = \beta_1 + \beta_3 X_2$ בערך $X_2 = 1$, כלומר $b_1 + b_3$. $b_2$ הוא הקבוע של Heavy (תוספת ל-$\beta_0$), לא חלק מהשיפוע.</p>
+          <p style="margin-top:8px;"><b>למה השאר שגויים:</b></p>
+          <ul style="margin:6px 0;">
+            <li><b>(1)</b> במודל האדיטיבי השיפוע $-0.51$ הוא <i>ממוצע פסול</i> בין $-0.30$ של Light ו-$-0.80$ של Heavy — לא תקף לאף קבוצה.</li>
+            <li><b>(3)</b> centering משנה את $\beta_0, \beta_1, \beta_2$ אבל <b>$b_3$ נשאר זהה</b> ($-0.503$). האינטראקציה היא invariant לטרנספורמציות לינאריות.</li>
+            <li><b>(4)</b> נוסף איבר אחד בלבד (האינטראקציה), לכן $df = 1$ ולא $2$.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תאים 21–22</span> (<code class="ltr">Write your answer here</code> + תא קוד ריק).
+        </span>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- SUMMARY — Linear block recap + bridge to logistic                    -->
+    <!-- ================================================================== -->
+    <section class="block" id="summary">
+      <div class="section-banner">
+        <h2>סיכום בלוק לינארי + הצצה לשיעור 7</h2>
+      </div>
+
+      <p>שישה שיעורים, אותו מודל בליבה, הרחבות בכל הכיוונים. ככה זה נראה במבט אחורנית.</p>
+
+      <div class="callout">
+        <h3>6 נקודות לזכור — סיכום הבלוק הלינארי</h3>
+        <ol>
+          <li><b>שיעור 01 — OLS Foundations.</b> $\hat Y = X \beta$, פתרון סגור $\hat \beta = (X^T X)^{-1} X^T y$. בעזרת <code class="ltr">sm.OLS(y, X).fit()</code> + <code class="ltr">summary()</code> מקבלים מקדמים, $p$-values, $R^2$, CI. <b>המודל שדבר אחר כל הקורס נבנה עליו.</b></li>
+          <li><b>שיעור 02 — Transformations.</b> כשהקשר לא לינארי או ה-residuals מראים heteroskedasticity — טרנספורמציה ל-$Y$ (log, sqrt, וכו') מתקנת. דיאגנוסטיקה: residuals plot, QQ-plot. <b>OLS עובד — צריך לוודא שההנחות מתקיימות.</b></li>
+          <li><b>שיעור 03 — Multivariate + Multicollinearity.</b> כמה רגרסורים יחד, VIF כמדד לתלות. <b>VIF $> 10$ — סימן אזהרה</b> (לרוב; ספציפי לקטיגוריאלי וקטיגוריאלי + אינטראקציות יש בעיות מבניות שלמדנו בשיעור 06).</li>
+          <li><b>שיעור 04 — Dummies.</b> משתנים קטגוריאליים <bdi dir="ltr">→</bdi> דמיים בינאריים. <code class="ltr">pd.get_dummies(drop_first=True)</code> נמנע מ-dummy trap. F-test משותף לקבוצת דמיים — <i>אל</i> $t$-tests בודדים.</li>
+          <li><b>שיעור 05 — Polynomial + Selection.</b> $\hat Y = b_0 + b_1 x + b_2 x^2 + \dots$ — עדיין לינארי בפרמטרים. $R^2$ עולה תמיד, צריך AIC/BIC/adjR² לבחירת מודל. stepwise = heuristic, $p$-values אחריו מוטים.</li>
+          <li><b>שיעור 06 (היום) — Interactions.</b> $X_1 X_2$ כאיבר מודלים $\to$ שיפוע משתנה. $\beta_3 = $ שינוי בשיפוע. F-test לבחינה. עקרון ההיררכיה — לא לזרוק main effects.</li>
+        </ol>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>בשיעור 7 — Logistic Regression</h3>
+        <p>עד עכשיו $Y$ היה רציף. <b>מה אם $Y$ הוא בינארי?</b> תקלה / לא תקלה. הצלחה / כישלון. אם נריץ OLS על משתנה בינארי — נקבל חיזויים מחוץ ל-$[0, 1]$ ((שאינם הסתברויות חוקיות), residuals heteroskedastic, וקואפיציינטים חסרי משמעות.</p>
+        <p style="margin-top:8px;">הפתרון: <b>פונקציית sigmoid</b> שמלפפת את ה-output ל-$[0, 1]$. <b>log-odds</b> במקום הסתברות גולמית. <b>Maximum Likelihood</b> במקום Least Squares. כל הכלים שלמדנו עוברים לעולם החדש — אבל עם פירוש שונה.</p>
+        <p style="margin-top:8px;"><b>בלוק חדש מתחיל — Logistic.</b> 3 שיעורים (07, 08, 09).</p>
+      </div>
+
+    </section>
+
+  </main>
+
+  <footer class="lesson-footer">
+    Regression Course — Lesson 06 · TA: Raz Elbaz · עודכן: 2026-05-15
+  </footer>
+
+  <script src="shared/interactivity.js"></script>
+</body>
+</html>

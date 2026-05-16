@@ -91,6 +91,17 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // ---------- TOC: build floating panel from sections ----------
+  // KaTeX renders $...$ inside headings into HTML that includes BOTH the visible
+  // math AND a hidden MathML annotation carrying the original LaTeX source.
+  // Calling textContent on a KaTeX-rendered h2 returns all of them concatenated
+  // (e.g. "β₃\beta_3β₃"). Clone the heading and strip the MathML duplicates
+  // before reading the text so the floating-TOC label matches what the user sees.
+  function tocTextFromH2(h2) {
+    const clone = h2.cloneNode(true);
+    clone.querySelectorAll('.katex-mathml').forEach(el => el.remove());
+    return clone.textContent.trim();
+  }
+
   const sections = Array.from(document.querySelectorAll('main > section'));
   const tocPanel = document.createElement('div');
   tocPanel.className = 'float-toc-panel';
@@ -106,7 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const li = document.createElement('li');
     const a = document.createElement('a');
     a.href = '#' + id;
-    a.textContent = h2.textContent.trim();
+    a.textContent = tocTextFromH2(h2);
     a.addEventListener('click', (e) => {
       e.preventDefault();
       if (document.body.dataset.mode === 'slides') {
