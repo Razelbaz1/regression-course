@@ -1,0 +1,501 @@
+<!doctype html>
+<!--
+  Lesson 08 — Maximum Likelihood Estimation
+  Aligned with: lesson_plans/lesson_08.md (9 blocks + summary)
+  Notebook anchor: regression-course/lesson8/Tirgul.ipynb (23 cells)
+-->
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lesson 08 — Maximum Likelihood Estimation</title>
+
+  <link rel="stylesheet" href="shared/palette.css">
+  <link rel="stylesheet" href="shared/components.css">
+  <link rel="stylesheet" href="shared/styles.css">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+          onload="renderMathInElement(document.body, {delimiters: [{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}]});"></script>
+</head>
+
+<body>
+
+  <header class="lesson-nav">
+    <a href="lesson_07.html"><bdi dir="ltr">←</bdi> השיעור הקודם: Logistic Intro</a>
+    <span class="lesson-name">Lesson 08 — Maximum Likelihood Estimation</span>
+    <a href="lesson_09.html">השיעור הבא: Confusion Matrix <bdi dir="ltr">→</bdi></a>
+  </header>
+
+  <main>
+
+    <div class="lesson-title-banner">
+      <h1>Regression Course — Lesson 08</h1>
+      <div class="subtitle">Maximum Likelihood Estimation — איך statsmodels מוצא את $\hat\beta$</div>
+      <span class="pill">פרק: Logistic (2/3)</span>
+    </div>
+
+    <div class="prev-reminder">
+      <strong>תזכורת מהשיעור הקודם:</strong> הצגנו את המודל הלוגיסטי $\hat p = \sigma(\beta_0 + \beta_1 X)$, ראינו ש-OLS שובר ל-$Y$ בינארי, הרצנו <code class="ltr">sm.Logit</code> על דאטה Challenger וקיבלנו $\hat\beta_0 = 23.22, \hat\beta_1 = -0.358$, ופירשנו את המקדם דרך odds ratio $e^{\hat\beta_1} = 0.70$. **אמרנו "MLE" וזרקנו** — היום פותחים את הקופסה השחורה.
+    </div>
+
+    <nav class="toc">
+      <h2>תוכן עניינים</h2>
+      <ol>
+        <li><a href="#block-1">פרק 1 — חזרה משיעור 07</a></li>
+        <li><a href="#block-2">פרק 2 — MLE על Bernoulli</a></li>
+        <li><a href="#block-3">פרק 3 — מעבר ל-Logistic</a></li>
+        <li><a href="#block-4">פרק 4 — קווי likelihood על Challenger</a></li>
+        <li><a href="#block-5">פרק 5 — log-likelihood + עקומה 1D</a></li>
+        <li><a href="#block-6">פרק 6 — Surface 2D של log L</a></li>
+        <li><a href="#block-7">פרק 7 — Newton-Raphson: האופטימיזציה הנומרית</a></li>
+        <li><a href="#block-8">פרק 8 — השוואה ל-sm.Logit</a></li>
+        <li><a href="#block-9">פרק 9 — סיכום + הצצה לשיעור 09</a></li>
+        <li><a href="#summary">סיכום + הצצה לשיעור 09</a></li>
+      </ol>
+    </nav>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 1 — Refresh from lesson 07 (cell 2)                           -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-1">
+      <div class="section-banner">
+        <h2>פרק 1 — חזרה משיעור 07</h2>
+      </div>
+
+      <p>בשיעור 07 ראינו את הקסם. הרצנו <code class="ltr">sm.Logit(failure, [intercept, temp]).fit()</code>, ו-statsmodels החזיר מקדמים: $\hat\beta_0 = 23.22, \hat\beta_1 = -0.358$. גם <code class="ltr">Log-Likelihood = -7.07</code> בטור של summary — אבל לא הסברנו מה זה.</p>
+
+      <p>השאלה הפתוחה: <b>איך statsmodels בחר דווקא את ה-$\beta$ הזה?</b> ב-OLS הייתה תשובה ברורה — הנוסחה $\hat\beta = (X^T X)^{-1} X^T Y$. נכנסים, מקבלים פלט, סוגרים את הקופסה. <b>בלוגיסטית אין כזאת נוסחה.</b> ובכל זאת — מצאנו $\hat\beta$. איך?</p>
+
+      <div class="callout">
+        <h3>השם של המנגנון: MLE</h3>
+        <p><b>Maximum Likelihood Estimation</b> — "אומדן הסבירות המקסימלית". הרעיון: <b>בחר את ה-$\beta$ שעבורו הדאטה שראינו <i>הכי סביר</i> תחת המודל המוצע</b>.</p>
+        <p style="margin-top:8px;">היום נראה: (א) המוטיבציה דרך דוגמת מטבע פשוטה, (ב) ההכללה ל-logistic, (ג) ויזואליזציה של "כמה סביר", (ד) למה אין נוסחה סגורה, (ה) איך statsmodels בכל זאת מוצא — דרך אופטימיזציה איטרטיבית של ~6 שורות שמתכנסת תוך 5-10 צעדים.</p>
+      </div>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תא 2</span> (ייבוא ספריות).
+        </span>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 2 — Bernoulli MLE (cells 4–5)                                 -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-2">
+      <div class="section-banner">
+        <h2>פרק 2 — MLE על Bernoulli</h2>
+      </div>
+
+      <p>נתחיל מהמקרה הפשוט ביותר של MLE — דוגמה שלא דורשת logistic או אופטימיזציה. <b>שחקן כדורסל זרק 10 פעמים וקלע 7</b>. מה ההסתברות $p$ הכי סבירה לקליעה בודדת?</p>
+
+      <div class="qa">
+        <div class="question">
+          <b>שאלה לכיתה (survey פתוח):</b> הניחו את העט. <b>בלי לחשוב מתמטית</b> — מה הניחוש האינטואיטיבי שלכם? $0.7$? למה? איך ידעתם?
+        </div>
+      </div>
+
+      <p>רוב המקרים — הניחוש האינטואיטיבי הוא $p = 0.7 = 7/10$. <b>זה בדיוק MLE.</b> נראה למה.</p>
+
+      <p>תחת ההנחה ש-$Y_i \sim \text{Bernoulli}(p)$ ונשייכת תצפיות בלתי-תלויות, ההסתברות לראות בדיוק 7 קליעות מ-10 ניסיונות תחת ערך $p$ נתון היא:</p>
+
+      <div class="formula-box">
+        $L(p) = p^7 \cdot (1 - p)^3$
+      </div>
+
+      <p>(משמטים את $\binom{10}{7}$ כי הוא קבוע ולא משפיע על האופטימיזציה.) <b>פונקציית ה-likelihood</b> $L(p)$ מקבלת ערך הסתברותי בין 0 ל-1 לכל $p$ — ומחפשים את ה-$p$ שמקסם.</p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תאים 4–5</span> (גרף $L(p)$ וטבלה).
+        </span>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>מה ראינו בגרף</h3>
+        <ul>
+          <li><b>העקומה מקסימלית ב-$p = 0.7$</b> — בדיוק $7/10$. הקצוות ($p = 0$ ו-$p = 1$) — אפס. לא ייתכן לקבל 7 הצלחות מ-10 אם הסיכוי לקליעה הוא 0 או 1.</li>
+          <li><b>ערכים ספציפיים:</b> $L(0.5) = 9.77 \times 10^{-4}$, $L(0.7) = 2.22 \times 10^{-3}$ — <b>גבוה פי 2.3</b>. $L(0.9) = 4.78 \times 10^{-4}$ — נמוך יותר.</li>
+          <li><b>הוכחה אנליטית:</b> $\partial L / \partial p = 0$ נותן $\hat p = 7/10$. <b>אבל ויזואלית — זה בולט.</b></li>
+        </ul>
+      </div>
+
+      <p>הרעיון הכללי של MLE: <b>מקסמים את $L$ לפי הפרמטר</b>. בדוגמה הזאת — פרמטר אחד, פתרון אנליטי. במציאות הלוגיסטית — שני פרמטרים ($\beta_0, \beta_1$), <b>בלי</b> פתרון אנליטי. אבל <b>הרעיון זהה.</b></p>
+
+      <div class="callout">
+        <h3>קצת על $\log L$ — חזרה אחר כך</h3>
+        <p>בפועל לא עובדים עם $L$ אלא עם $\log L$ — לוגריתם של פונקציית ה-likelihood. שלוש סיבות (פרק 5 בעומק):</p>
+        <ol>
+          <li><b>יציבות נומרית.</b> $L$ של מאות תצפיות נופל ל-$10^{-300}$ — float underflow.</li>
+          <li><b>סכומים במקום מכפלות.</b> נגזרים יותר בקלות.</li>
+          <li><b>אותו אופטימום.</b> $\log$ מונוטוני עולה — $\arg\max L = \arg\max \log L$.</li>
+        </ol>
+        <p>ב-Bernoulli שלנו: $\log L(p) = 7 \log p + 3 \log(1 - p)$. <b>אותו $\hat p = 0.7$.</b></p>
+      </div>
+
+      <div class="qa">
+        <div class="question">
+          <b>שאלה לכיתה:</b> דמיינו שאני אומר ש-$p = 0.5$. <b>מה הסיכוי לראות בדיוק 7 קליעות מ-10 זריקות תחת המודל הזה?</b> ותחת $p = 0.7$? מי "סביר יותר"?
+        </div>
+        <button class="toggle-btn">גלה תשובה</button>
+        <div class="answer">
+          <p><b>תחת $p = 0.5$:</b> $L(0.5) = 0.5^7 \cdot 0.5^3 = 0.5^{10} \approx 0.00098$. <b>תחת $p = 0.7$:</b> $L(0.7) = 0.7^7 \cdot 0.3^3 \approx 0.00222$.</p>
+          <p style="margin-top:8px;"><b>היחס:</b> $L(0.7) / L(0.5) \approx 2.3$. כלומר, ה-likelihood של הדאטה הזה תחת $p = 0.7$ <b>גבוהה פי 2.3</b> מתחת $p = 0.5$.</p>
+          <p style="margin-top:8px;"><b>בשפת MLE:</b> "$p = 0.7$ סביר יותר מ-$p = 0.5$ בהינתן הדאטה שראינו." זה לא קסם — זה בדיוק מה ש-MLE אומר.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 3 — Transition to Logistic (cell 7)                           -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-3">
+      <div class="section-banner">
+        <h2>פרק 3 — מעבר ל-Logistic</h2>
+      </div>
+
+      <p>בדוגמת המטבע כל תצפית הייתה עם <b>אותה $p$</b> — קבוע יחיד. ב-Logistic Regression, כל תצפית $i$ יכולה לקבל <b>$p_i$ שונה</b> — כי ההסתברות תלויה ב-$X_i$:</p>
+
+      <div class="formula-box">
+        $p_i = \sigma(\beta_0 + \beta_1 X_i)$
+      </div>
+
+      <p>וזה משנה את ה-likelihood. אם $Y_i = 1$ — תרומת התצפית ל-likelihood היא $p_i$. אם $Y_i = 0$ — התרומה היא $1 - p_i$. הניסוח האחיד:</p>
+
+      <div class="formula-box">
+        $L(\beta_0, \beta_1) = \prod_{i=1}^n p_i^{Y_i} (1 - p_i)^{1 - Y_i}$
+      </div>
+
+      <p>וב-$\log$:</p>
+
+      <div class="formula-box">
+        $\ell(\beta_0, \beta_1) = \sum_{i=1}^n \big[Y_i \log p_i + (1 - Y_i) \log(1 - p_i)\big]$
+      </div>
+
+      <p><b>הרעיון זהה לברנולי</b> — מקסמים את $\ell$ לפי הפרמטרים. ההבדל: שני פרמטרים במקום אחד, ו-$p_i$ אינו קבוע.</p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תא 7</span> (טעינת Challenger + טבלת $\log L$ עבור 5 ערכי $(\beta_0, \beta_1)$).
+        </span>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>מה ראינו בטבלה</h3>
+        <ul>
+          <li><b>$(\beta_0, \beta_1) = (0, 0)$:</b> $\log L = -15.94$. במצב הזה $\sigma(0) = 0.5$ לכל $X$ — המודל לא משתמש בדאטה. הערך הכי גרוע מבין כל הבחירות.</li>
+          <li><b>$(10, -0.15)$:</b> $\log L = -9.53$. כיוון נכון (שיפוע שלילי) — אבל המקדמים קטנים מדי.</li>
+          <li><b>$(20, -0.30)$:</b> $\log L = -7.70$. קרוב לאופטימום.</li>
+          <li><b>$(23.22, -0.358)$:</b> $\log L = -7.07$. <b>הערך הגבוה ביותר בטבלה</b> — וזה בדיוק התוצאה של <code class="ltr">sm.Logit</code> מהשיעור הקודם.</li>
+          <li><b>$(30, -0.45)$:</b> $\log L = -7.50$. עברנו את האופטימום.</li>
+        </ul>
+        <p>$\log L$ מקסימלי באופטימום של MLE. <b>זה הסיפור.</b></p>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 4 — Likelihood lines visualization (cell 9) + Enrichment #1   -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-4">
+      <div class="section-banner">
+        <h2>פרק 4 — קווי likelihood על Challenger</h2>
+      </div>
+
+      <p>הצגנו את ה-likelihood באמצעות מספרים. עכשיו נראה אותה <b>ויזואלית</b>. הרעיון: לכל תצפית $(X_i, Y_i)$, צייר <b>קו אנכי מקווקו</b> מהנקודה לעקומת ה-sigmoid. <b>ככל שהקו קצר יותר — המודל קרוב יותר לתצפית — likelihood גבוהה.</b></p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תא 9</span> (3 פנלים — Bad fit / Better / MLE optimum, עם קווי likelihood).
+        </span>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>מה ראינו ב-3 הפנלים</h3>
+        <ul>
+          <li><b>שמאל ("Bad fit", $\beta_0 = 10, \beta_1 = -0.15$):</b> העקומה רחוקה מהדאטה. רוב הקווים ארוכים. $\log L = -9.53$ — נמוך.</li>
+          <li><b>אמצע ("Better", $\beta_0 = 20, \beta_1 = -0.30$):</b> העקומה משתפרת. הקווים קצרים יותר. $\log L = -7.70$.</li>
+          <li><b>ימין ("MLE optimum", $\beta_0 = 23.22, \beta_1 = -0.358$):</b> <b>הקווים הקצרים ביותר</b>. נקודות $Y = 1$ נמצאות באזור שבו העקומה גבוהה, נקודות $Y = 0$ נמצאות באזור שבו העקומה נמוכה. $\log L = -7.07$ — הגבוה ביותר.</li>
+        </ul>
+      </div>
+
+      <p>זה הרעיון הוויזואלי של MLE. <b>חיפוש הפרמטרים שיגרמו לכל הנקודות להיות קרובות ככל האפשר לעקומה שלהן.</b> אין מטרה אחרת — רק התאמה לדאטה.</p>
+
+      <div class="callout">
+        <h3>Likelihood כ-fit ויזואלי — קישור ל-OLS</h3>
+        <p><b>שאלה:</b> מהי "התאמה טובה" של מודל לדאטה?</p>
+        <p style="margin-top:8px;"><b>ב-OLS</b> הייתה תשובה ברורה: <b>מינימום SSR</b> — מינימום של $\sum (Y_i - \hat Y_i)^2$. גיאומטרית, סכום ריבועי השגיאות בין הנקודות לקו.</p>
+        <p style="margin-top:8px;"><b>ב-Logistic התשובה היא:</b> <b>maximum likelihood</b> — מקסימום של $\prod p_i^{Y_i} (1-p_i)^{1-Y_i}$. ויזואלית: ה<b>קווים בין הנקודות לעקומה</b> — אם הנקודה ב-$Y=1$ והעקומה ב-$0.95$, הקו (ההפרש) הוא $0.05$, וה-likelihood של הנקודה הזאת היא $0.95$.</p>
+        <p style="margin-top:8px;"><b>הקישור:</b> $-\log L = -\sum [Y_i \log p_i + (1-Y_i) \log(1-p_i)]$ נקרא בעולם של Machine Learning <b>cross-entropy loss</b>. <b>מינימום של cross-entropy = מקסימום של likelihood.</b> זאת אותה המטרה.</p>
+        <p style="margin-top:8px;"><b>הסטודנטים יראו את זה שוב</b> — באלגוריתמי deep learning, ב-classification problems, באופטימיזציה של neural networks. <b>Logistic Regression הוא קייס בסיסי של רעיון רחב.</b></p>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 5 — log-likelihood + 1D profile (cells 11–12)                 -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-5">
+      <div class="section-banner">
+        <h2>פרק 5 — log-likelihood: למה log + עקומה 1D</h2>
+      </div>
+
+      <p>אמרנו "תמיד עובדים ב-$\log L$ בפועל". <b>נציג את הסיבה.</b> הסיבה הראשונה — והקריטית ביותר — היא <b>יציבות נומרית</b>.</p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תא 11</span> (השוואת $L$ ו-$\log L$ ל-$n$ גדל).
+        </span>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>הדגמת underflow</h3>
+        <ul>
+          <li><b>$n = 10$ תצפיות (Bernoulli, $p = 0.7$):</b> $L \approx 2 \times 10^{-3}$, $\log L \approx -6$. שניהם סבירים.</li>
+          <li><b>$n = 50$:</b> $L \approx 10^{-13}$. עדיין מספר — אבל קטן.</li>
+          <li><b>$n = 200$:</b> $L \approx 10^{-53}$ — <b>קרוב ל-float underflow</b>. $\log L \approx -122$ — מספר רגיל.</li>
+          <li><b>$n = 1000$:</b> $L \approx 10^{-265}$ — מאוד קרוב לאפס. $\log L \approx -610$ — עדיין מספר רגיל.</li>
+        </ul>
+        <p>ל-$n$ גדול יותר $L$ יורד ל-$0.0$ ב-floating-point arithmetic. <b>$\log L$ נשאר במספרים סבירים תמיד.</b> זאת הסיבה התפעולית הראשונה לעבוד ב-log.</p>
+      </div>
+
+      <p>שתי סיבות נוספות: <b>(ב)</b> נגזרת של סכום פשוטה יותר מנגזרת של מכפלה. <b>(ג)</b> אותו אופטימום — $\log$ מונוטוני עולה, לכן $\arg\max L = \arg\max \log L$. שלוש סיבות, מסקנה אחת: <b>תמיד ב-log</b>.</p>
+
+      <p>עכשיו נסתכל על $\log L$ של Challenger כפונקציה של $\beta_1$ <b>בלבד</b> — כש-$\beta_0$ מותאם לכל $\beta_1$ באופן אופטימלי. זה נקרא <b>profile log-likelihood</b>.</p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תא 12</span> (profile log-likelihood 1D).
+        </span>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>מה ראינו בעקומה 1D</h3>
+        <ul>
+          <li>עקומה <b>חלקה וקעורה</b>, מקסימום בולט סביב $\beta_1 = -0.358$ — ה-MLE שלנו.</li>
+          <li>בקצוות — יורד תלול. $\beta_1$ רחוק מהאופטימום $=$ $\log L$ נמוך משמעותית.</li>
+          <li>אין מקסימומים מקומיים — רק אחד. <b>פונקציית $\log L$ של Logistic Regression היא תמיד קעורה</b> (concave) — מקסימום עולמי יחיד מובטח.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 6 — 2D contour surface (cell 14) + Enrichment #2 (OLS = MLE)  -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-6">
+      <div class="section-banner">
+        <h2>פרק 6 — Surface 2D של $\ell(\beta_0, \beta_1)$</h2>
+      </div>
+
+      <p>חתכנו את הפונקציה בצורה אחת ב-1D. עכשיו נראה את כולה ב-2D — <b>contour plot</b> של $\log L(\beta_0, \beta_1)$. נקבל מפה של "גבהים" של פונקציית $\log L$ במישור הפרמטרים.</p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תא 14</span> (contour plot 2D).
+        </span>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>מה ראינו ב-contour</h3>
+        <ul>
+          <li><b>הקווים האליפסיים</b> — קווי שווה $\log L$. ככל שהצבע "חם" יותר (קרוב לאופטימום), $\log L$ גבוה יותר.</li>
+          <li><b>ה-X האדומה ב-$(23.22, -0.358)$</b> — נקודת ה-MLE. במרכז ה"אגן".</li>
+          <li><b>הצורה האליפסית — לא עיגולית</b>. שני הפרמטרים <b>מתואמים</b> — שינוי באחד דורש פיצוי באחר. (במקרה שלנו: כש-$\beta_1$ יורד, $\beta_0$ צריך לעלות כדי לשמור על אותו $z$ באזור הדאטה.)</li>
+          <li><b>אין מקסימומים מקומיים אחרים.</b> שלמות הפונקציה מבטיחה התכנסות אופטימיזציה לפתרון יחיד — לא משנה מאיפה מתחילים.</li>
+        </ul>
+      </div>
+
+      <div class="callout">
+        <h3>OLS הוא גם MLE — תחת הנחת נורמליות</h3>
+        <p>אמרנו ש-MLE הוא הרעיון הכללי. <b>OLS הוא מקרה פרטי שלו.</b></p>
+        <p style="margin-top:8px;">תחת ההנחה ב-OLS — $\varepsilon_i \sim \mathcal{N}(0, \sigma^2)$ — פונקציית ה-likelihood של המודל היא:</p>
+        <div class="formula-box" style="font-size:16px;">
+          $L(\beta) = \prod_{i=1}^n \dfrac{1}{\sigma\sqrt{2\pi}} \exp\left(-\dfrac{(Y_i - X_i \beta)^2}{2\sigma^2}\right)$
+        </div>
+        <p style="margin-top:8px;">לוקחים $\log$, מקבלים:</p>
+        <div class="formula-box" style="font-size:16px;">
+          $\log L = -n \log(\sigma\sqrt{2\pi}) - \dfrac{1}{2\sigma^2} \sum (Y_i - X_i \beta)^2$
+        </div>
+        <p style="margin-top:8px;"><b>מקסום $\log L$ לפי $\beta$</b> $=$ <b>מינימום של $\sum (Y_i - X_i \beta)^2$</b> $=$ <b>מינימום של SSR</b> $=$ <b>OLS</b>. הקלף נופל.</p>
+        <p style="margin-top:8px;"><b>המסקנה הגדולה:</b></p>
+        <ul style="margin:6px 0;">
+          <li><b>OLS = MLE תחת נורמליות.</b></li>
+          <li><b>Logistic Regression = MLE תחת Bernoulli.</b></li>
+          <li><b>Poisson Regression = MLE תחת Poisson</b> (שיעור 10).</li>
+          <li><b>Negative Binomial = MLE תחת NB</b> (שיעור 12).</li>
+        </ul>
+        <p style="margin-top:8px;"><b>כולם מסגרת אחת</b> — Generalized Linear Models (GLM) — שמשנה רק את ההתפלגות וה-link function. הסטודנט יראה את זה כשנמלא את הפרק על פואסון. <b>בסטטסמודלס:</b> <code class="ltr">sm.GLM(y, X, family=sm.families.Binomial())</code> זהה ל-<code class="ltr">sm.Logit(y, X)</code>.</p>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 7 — Newton-Raphson (cells 16–17)                              -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-7">
+      <div class="section-banner">
+        <h2>פרק 7 — Newton-Raphson: האופטימיזציה הנומרית</h2>
+      </div>
+
+      <p>הראינו את פונקציית $\log L$ — קעורה, מקסימום יחיד. אבל איך <b>בפועל</b> מוצאים אותו? אופטימיזציה איטרטיבית — אלגוריתם <b>Newton-Raphson</b>.</p>
+
+      <div class="callout">
+        <h3>האינטואיציה</h3>
+        <p>תהליך איטרטיבי. בכל איטרציה:</p>
+        <ol>
+          <li><b>מחשבים את ה-gradient</b> — כיוון העלייה החדה ביותר של $\log L$ סביב הנקודה הנוכחית.</li>
+          <li><b>מחשבים את ה-Hessian</b> — מטריצת הנגזרות השניות, שמתארת את ה<b>קעירות</b> המקומית של הפונקציה.</li>
+          <li><b>מעדכנים:</b> $\beta_{\text{new}} = \beta_{\text{old}} - H^{-1} g$. כש-Hessian שלילי-מוגדר (פונקציה קעורה), הצעד הוא לכיוון המקסימום. בעלי קעירות גבוהה הצעד קטן, בעלי קעירות נמוכה הצעד גדול.</li>
+        </ol>
+        <p style="margin-top:8px;"><b>זה הרעיון.</b> בפועל זה כמה שורות קוד שמתכנסות תוך 5-10 איטרציות.</p>
+      </div>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תאים 16–17</span> (הגדרת gradient + Hessian, לולאת Newton-Raphson 6 איטרציות).
+        </span>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>מה ראינו בלולאה</h3>
+        <table style="width:100%; border-collapse:collapse; margin:8px 0; font-size:0.95em;">
+          <thead>
+            <tr style="border-bottom:2px solid var(--color-border);">
+              <th style="padding:6px 12px; text-align:right;">iter</th>
+              <th style="padding:6px 12px; text-align:right;">$\beta_0$</th>
+              <th style="padding:6px 12px; text-align:right;">$\beta_1$</th>
+              <th style="padding:6px 12px; text-align:right;">$\log L$</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td style="padding:5px 12px;">0</td><td style="padding:5px 12px;">$0.0000$</td><td style="padding:5px 12px;">$0.0000$</td><td style="padding:5px 12px;">$-15.94$</td></tr>
+            <tr><td style="padding:5px 12px;">1</td><td style="padding:5px 12px;">$10.48$</td><td style="padding:5px 12px;">$-0.163$</td><td style="padding:5px 12px;">$-8.40$</td></tr>
+            <tr><td style="padding:5px 12px;">2</td><td style="padding:5px 12px;">$16.86$</td><td style="padding:5px 12px;">$-0.262$</td><td style="padding:5px 12px;">$-7.29$</td></tr>
+            <tr><td style="padding:5px 12px;">3</td><td style="padding:5px 12px;">$21.33$</td><td style="padding:5px 12px;">$-0.329$</td><td style="padding:5px 12px;">$-7.09$</td></tr>
+            <tr><td style="padding:5px 12px;">4</td><td style="padding:5px 12px;">$23.04$</td><td style="padding:5px 12px;">$-0.355$</td><td style="padding:5px 12px;">$-7.0715$</td></tr>
+            <tr style="background:var(--color-callout-bg);"><td style="padding:5px 12px;"><b>5</b></td><td style="padding:5px 12px;"><b>$23.22$</b></td><td style="padding:5px 12px;"><b>$-0.3576$</b></td><td style="padding:5px 12px;"><b>$-7.0714$</b></td></tr>
+            <tr><td style="padding:5px 12px;">6</td><td style="padding:5px 12px;">$23.22$</td><td style="padding:5px 12px;">$-0.3576$</td><td style="padding:5px 12px;">$-7.0714$</td></tr>
+          </tbody>
+        </table>
+        <ul>
+          <li><b>התכנסות מהירה.</b> תוך 5 איטרציות הגענו לדיוק של ספרה רביעית אחרי הנקודה. iter 6 לא שינה.</li>
+          <li><b>קצב סופר-לינארי.</b> כל איטרציה מכפילה את מספר הספרות המדויקות.</li>
+          <li><b>מ-$(0,0)$ עד $(23.22, -0.358)$ דרך מסלול ברור</b> שמכפיל את המקדמים בכל איטרציה ולא חורג מאף סף.</li>
+        </ul>
+      </div>
+
+      <div class="callout">
+        <h3>IRLS — מה statsmodels באמת עושה</h3>
+        <p>statsmodels לא קוראת ל-Newton-Raphson גנרי — היא משתמשת ב-<b>IRLS</b>: <b>Iteratively Reweighted Least Squares</b>. וריאציה ייעודית של Newton-Raphson ל-GLM.</p>
+        <p style="margin-top:8px;"><b>הטריק היפה של IRLS:</b> כל איטרציה של Newton-Raphson על Logistic שווה ל-<b>OLS עם משקלים</b> שמתעדכנים בכל פעם. כלומר, את הכלים שלמדנו בבלוק הלינארי (OLS) <b>בלב המנוע של Logistic</b>. שום דבר לא מתבזבז.</p>
+        <p style="margin-top:8px;"><b>אזכור בלבד — לא נכנס לעומק.</b> מי שירצה לקרוא — McCullagh & Nelder, "Generalized Linear Models" (1989).</p>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 8 — Comparison with sm.Logit (cell 19) + Enrichment #3        -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-8">
+      <div class="section-banner">
+        <h2>פרק 8 — השוואה ל-<code class="ltr">sm.Logit</code></h2>
+      </div>
+
+      <p>סגירת הלולאה. הריצה הידנית שלנו (Newton-Raphson 6 איטרציות) הגיעה לאופטימום. <b>נשווה ל-<code class="ltr">sm.Logit</code>.</b></p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תא 19</span> (השוואה צד-בצד).
+        </span>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>מה ראינו בפלט</h3>
+        <table style="width:100%; border-collapse:collapse; margin:8px 0; font-size:0.95em;">
+          <thead>
+            <tr style="border-bottom:2px solid var(--color-border);">
+              <th style="padding:6px 12px; text-align:right;">שיטה</th>
+              <th style="padding:6px 12px; text-align:right;">$\hat\beta_0$</th>
+              <th style="padding:6px 12px; text-align:right;">$\hat\beta_1$</th>
+              <th style="padding:6px 12px; text-align:right;">$\log L$</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td style="padding:5px 12px;">Newton-Raphson ידני</td><td style="padding:5px 12px;">$23.2216$</td><td style="padding:5px 12px;">$-0.3576$</td><td style="padding:5px 12px;">$-7.0714$</td></tr>
+            <tr><td style="padding:5px 12px;"><code class="ltr">sm.Logit</code></td><td style="padding:5px 12px;">$23.2216$</td><td style="padding:5px 12px;">$-0.3576$</td><td style="padding:5px 12px;">$-7.0714$</td></tr>
+          </tbody>
+        </table>
+        <p style="margin-top:8px;"><b>זהה עד הספרה הרביעית.</b> זה לא במקרה — Newton-Raphson ו-IRLS פותרים את אותה משוואה. אנחנו לא מצאנו "תוצאה דומה" — מצאנו את <b>אותה התוצאה</b>, מנוע מאחורי הקלעים.</p>
+      </div>
+
+      <div class="callout">
+        <h3>למה אלגוריתם נומרי במקום נוסחה?</h3>
+        <p><b>השאלה הטבעית:</b> ב-OLS היה נוסחה $\hat\beta = (X^T X)^{-1} X^T Y$. למה ב-Logit אין?</p>
+        <p style="margin-top:8px;"><b>התשובה המתמטית:</b> ה-gradient של $\log L$ ב-OLS הוא $X^T(Y - X\beta) = 0$ — <b>לינארי ב-$\beta$</b>. אפשר לבודד $\beta$ אנליטית. ב-Logit הוא $X^T(Y - \sigma(X\beta)) = 0$ — <b>לא לינארי ב-$\beta$</b> (בגלל $\sigma$). אין דרך לבודד $\beta$. <b>לכן</b> — אופטימיזציה איטרטיבית.</p>
+        <p style="margin-top:8px;"><b>תוצאה: יותר זמן.</b> אופטימיזציה של logit עם 1000 משתנים על מיליון תצפיות אורכת שניות-דקות; OLS אורך אלפיות שנייה. <b>אבל</b> — לרוב זה לא הצוואר הצר; הצוואר הוא בנתונים והמודל.</p>
+        <p style="margin-top:8px;"><b>השלכה רחבה:</b> ב-<b>Deep Learning</b>, <b>כל</b> המודל מתבסס על אופטימיזציה איטרטיבית (gradient descent על cross-entropy). אין נוסחאות סגורות בכלל. <b>Logistic Regression היא המקרה הפשוט ביותר של הרעיון</b> — ולכן מקום טוב להתחיל. <b>Logit הוא neural network עם שכבה אחת.</b></p>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 9 — Summary + look ahead (cells 21–22)                        -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-9">
+      <div class="section-banner">
+        <h2>פרק 9 — סיכום + הצצה לשיעור 09</h2>
+      </div>
+
+      <p>סיכמנו את MLE. תרגיל אופציונלי להמשך התאמנות בבית במחברת — שלוש שאלות בעלות אופי בדיקה (בדיקת התכנסות מנקודות שונות, הבנה של ערכי קצה של $\log L$, השפעת היפוך $Y$). יצא תוצאות ש-<code class="ltr">sm.Logit</code> שלמדה גם הוא משתמש בהן.</p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תאים 21–22</span> (תרגיל אופציונלי + תא קוד ריק).
+        </span>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- SUMMARY — Recap + bridge to lesson 09                                -->
+    <!-- ================================================================== -->
+    <section class="block" id="summary">
+      <div class="section-banner">
+        <h2>סיכום + הצצה לשיעור 09</h2>
+      </div>
+
+      <div class="callout">
+        <h3>4 נקודות לקחת מהיום</h3>
+        <ol>
+          <li><b>MLE = "המודל הסביר ביותר".</b> מקדמים $\hat\beta$ הם אלה שעבורם הדאטה שראינו "סביר ביותר" — תחת המודל המוצע. הרעיון הראשון של MLE — מטבע: 7 קליעות מ-10 $\Rightarrow$ $\hat p = 7/10$. אינטואיציה ישירה.</li>
+          <li><b>Likelihood אינו הסתברות.</b> אותה הנוסחה — תפקיד שונה. ב-likelihood, $\beta$ משתנה, $Y$ קבוע. בהסתברות הפוך. סטודנט שמערב — מבולבל בקבע.</li>
+          <li><b>למה log:</b> (א) <b>יציבות נומרית</b> (מכפלה של $n$ הסתברויות יורדת ל-$10^{-300}$, מתחת ל-float underflow); (ב) <b>נגזרות פשוטות יותר</b> (סכומים במקום מכפלות); (ג) <b>אותו אופטימום</b> ($\log$ מונוטוני).</li>
+          <li><b>אין נוסחה סגורה ל-logit</b> — בניגוד ל-OLS. statsmodels משתמש ב-<b>Newton-Raphson / IRLS</b> — אופטימיזציה איטרטיבית של $\log L$. <b>סוגר תוך 5-10 איטרציות.</b> ראינו זאת ידנית — אותה תוצאה כמו <code class="ltr">sm.Logit</code>.</li>
+        </ol>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>בשיעור 09 — Confusion Matrix & Evaluation</h3>
+        <p>המודל אומד. אבל איך <b>אומדים את האומד</b>? אם המודל מנבא הסתברות $0.7$ — איך הופכים את זה להחלטה?</p>
+        <p style="margin-top:8px;"><b>בשיעור 09:</b> <b>confusion matrix</b> עם TP/FP/TN/FN. <b>precision, recall, accuracy</b>. <b>ROC curve</b> ו-AUC. בחירת סף ההחלטה — מתי כדאי להיות "מחמיר" ומתי "ליברלי" בקבלת החלטה $Y = 1$.</p>
+        <p style="margin-top:8px;">בנוסף — נחזור למדדים <b>pseudo-$R^2$</b>, <b>AIC</b>, <b>BIC</b> שראינו בקצרה ב-summary של שיעור 07. הם כולם <b>נסמכים על $\log L$</b> שלמדנו היום — וזה כבר לא יישמע מוזר.</p>
+        <p style="margin-top:8px;"><b>סוף בלוק הלוגיסטית.</b> אחרי שיעור 09 נעבור ל-Poisson Regression — דאטה של <b>ספירות</b> (תאונות לרבעון, תקלות בשעה) שיש לו את אותו עץ של GLM שראינו היום.</p>
+      </div>
+
+    </section>
+
+  </main>
+
+  <footer class="lesson-footer">
+    Regression Course — Lesson 08 · TA: Raz Elbaz · עודכן: 2026-05-25
+  </footer>
+
+  <script src="shared/interactivity.js"></script>
+</body>
+</html>

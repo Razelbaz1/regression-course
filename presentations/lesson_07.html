@@ -1,0 +1,533 @@
+<!doctype html>
+<!--
+  Lesson 07 — Logistic Regression — Intro
+  Aligned with: lesson_plans/lesson_07.md (9 blocks + summary)
+  Notebook anchor: regression-course/lesson7/Tirgul.ipynb (24 cells)
+-->
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lesson 07 — Logistic Regression — Intro</title>
+
+  <link rel="stylesheet" href="shared/palette.css">
+  <link rel="stylesheet" href="shared/components.css">
+  <link rel="stylesheet" href="shared/styles.css">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+          onload="renderMathInElement(document.body, {delimiters: [{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}]});"></script>
+</head>
+
+<body>
+
+  <header class="lesson-nav">
+    <a href="lesson_06.html"><bdi dir="ltr">←</bdi> השיעור הקודם: Interactions</a>
+    <span class="lesson-name">Lesson 07 — Logistic Regression — Intro</span>
+    <a href="lesson_08.html">השיעור הבא: Maximum Likelihood <bdi dir="ltr">→</bdi></a>
+  </header>
+
+  <main>
+
+    <div class="lesson-title-banner">
+      <h1>Regression Course — Lesson 07</h1>
+      <div class="subtitle">Logistic Regression — Intro · כשהמטרה היא בינארית</div>
+      <span class="pill">פרק: Logistic (1/3)</span>
+    </div>
+
+    <div class="prev-reminder">
+      <strong>תזכורת מהשיעור הקודם:</strong> סגרנו את בלוק הלינארי עם אינטראקציות — איבר מכפלה $\beta_3 X_1 X_2$ שובר את האדיטיביות, $\beta_3$ הוא תוספת לשיפוע (לא ל-$Y$), F-test למודלים מקוננים, ועקרון ההיררכיה. היום פותחים בלוק חדש — Logistic — שמתחיל בהתנגשות חדשה לחלוטין: <b>מה קורה כש-$Y$ אינו רציף, אלא בינארי?</b>
+    </div>
+
+    <nav class="toc">
+      <h2>תוכן עניינים</h2>
+      <ol>
+        <li><a href="#block-1">פרק 1 — פתיחה: סיפור Challenger</a></li>
+        <li><a href="#block-2">פרק 2 — OLS על מספר כשלים</a></li>
+        <li><a href="#block-3">פרק 3 — Survivorship Bias</a></li>
+        <li><a href="#block-4">פרק 4 — המרה ל-binary + OLS שובר</a></li>
+        <li><a href="#block-5">פרק 5 — פונקציית sigmoid</a></li>
+        <li><a href="#block-6">פרק 6 — sm.Logit + פירוש ה-summary</a></li>
+        <li><a href="#block-7">פרק 7 — תחזית עם <code class="ltr">predict()</code> + נקודת ה-Challenger</a></li>
+        <li><a href="#block-8">פרק 8 — logit ו-odds ratio</a></li>
+        <li><a href="#block-9">פרק 9 — סיכום + הצצה לשיעור 08</a></li>
+        <li><a href="#summary">סיכום + הצצה לשיעור 08</a></li>
+      </ol>
+    </nav>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 1 — Opening: Challenger story (cells 0–2)                     -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-1">
+      <div class="section-banner">
+        <h2>פרק 1 — פתיחה: סיפור Challenger</h2>
+      </div>
+
+      <p>ב-<b>28 בינואר 1986</b>, בשעה 11:38 בבוקר, מעבורת החלל <b>Challenger</b> המריאה ממרכז קנדי בפלורידה למשימה <bdi dir="ltr">STS-51-L</bdi>. <b>73 שניות</b> לאחר ההמראה, בגובה $\approx 16$ ק"מ, היא התפוצצה. שבעה אסטרונאוטים נהרגו. הסיבה: כשל ב-<b>O-ring</b> — שסתום אטימה ב-Solid Rocket Booster, שהתקשח בקור הבלתי-רגיל של ההמראה — $30.5°F$ ($-1°C$). הטמפ' הנמוכה ביותר שבה אי-פעם הומראה מעבורת.</p>
+
+      <p>לפני Challenger היו <b>23 טיסות</b> של תוכנית המעבורות. את הדאטה שלהן יש לנו לפנינו — לכל טיסה: הטמפרטורה בעת ההמראה, ומספר ה-O-rings שכשלו (מתוך 6 בכל חללית). השאלה ההיסטורית הקלאסית:</p>
+
+      <div class="callout">
+        <h3>השאלה</h3>
+        <p>בהינתן 23 הטיסות שקדמו ל-Challenger — האם היה אפשר לחזות, סטטיסטית, שטיסה בטמפ' של $30°F$ נמצאת בסיכון? המסר הפדגוגי של היום אומר <b>שכן</b> — אבל הוועדה שאישרה את ההמראה הגיעה למסקנה הפוכה. נראה היום את שתי האנליזות האלה, ונבין למה האחת נכשלה והאחרת הצליחה. הסיפור הוא <b>שיעור-מקרה קלאסי</b> ב-survivorship bias וברגרסיה לוגיסטית.</p>
+      </div>
+
+      <p>היום נעבור את כל הצעדים שהובילו למסקנה הנכונה — בקוד, על הדאטה ההיסטורי. נתחיל מהמקום המוכר: <b>OLS</b>. נראה איפה הוא נכשל, ולמה. נגיע ל-<b>פונקציית sigmoid</b> כפתרון. נקבל מודל <b>לוגיסטי</b> שמחזיר הסתברות חוקית. ובסוף — נחזה את ההסתברות לכשל ב-$30.5°F$.</p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תא 2</span> (ייבוא ספריות).
+        </span>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 2 — OLS on num_failure (cells 4–5)                            -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-2">
+      <div class="section-banner">
+        <h2>פרק 2 — OLS על מספר כשלים</h2>
+      </div>
+
+      <p>נתחיל מהמקום שנוח לנו ממנו — <b>רגרסיה לינארית רגילה</b>. בדאטה יש שתי עמודות: <code class="ltr">temp</code> (טמפרטורה ב-°F) ו-<code class="ltr">num_failure</code> (מספר ה-O-rings שכשלו, $0$ עד $6$). זה משתנה <b>ספירה</b> — לא בינארי עדיין. אפשר להפעיל OLS ולראות מה יוצא.</p>
+
+      <div class="formula-box">
+        $\widehat{\text{num\_failure}} = \beta_0 + \beta_1 \cdot \text{temp}$
+      </div>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תאים 4–5</span> (טעינת הדאטה, scatter, OLS, ו-fitted line).
+        </span>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>מה ראינו ב-output</h3>
+        <ul>
+          <li><b>הקשר מובהק:</b> $\hat\beta_1 = -0.055$, $\text{p-value} = 8.5 \cdot 10^{-5}$. כל $+1°F$ מוריד $\approx 0.055$ כשלים.</li>
+          <li><b>$R^2 = 0.528$.</b> ההסבר של הטמפ' למספר הכשלים הוא יותר ממחצית מהשונות.</li>
+          <li><b>תחזית ב-$30°F$:</b> $\hat y = 4.154 - 0.055 \cdot 30 \approx 2.5$ כשלים מ-6. כלומר $\approx 42\%$ מהשסתומים צפויים לכשל.</li>
+        </ul>
+      </div>
+
+      <p>תוצאה כזאת היתה צריכה להדליק נורה אדומה. <b>אבל לא זה מה שקרה ב-1986.</b> הוועדה שדנה בשיגור התעלמה מחלק מהדאטה — ובכך הגיעה למסקנה חלשה בהרבה. בפרק הבא נראה איך המעבר הזה נראה סטטיסטית.</p>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 3 — Survivorship Bias (cells 7–8) + Wald story callout         -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-3">
+      <div class="section-banner">
+        <h2>פרק 3 — Survivorship Bias</h2>
+      </div>
+
+      <p>נדמיין את עצמנו ב-1985, בדיון לפני ההמראה. מישהו בוועדה אומר: "מעניין אותנו <b>רק מתי קרה משהו</b> — בואו נסתכל רק על הטיסות שבהן <b>היו</b> כשלים, ונבדוק את הקשר עם הטמפ' בקבוצה הזאת." זה נשמע סביר — הרי שם 'הקרה משהו'. <b>אבל זאת מלכודת קלאסית.</b></p>
+
+      <p>נסנן את הדאטה ל-<b>6 הטיסות בלבד</b> שבהן <code class="ltr">num_failure &gt; 0</code>, ונריץ OLS עליהן. נשווה את התוצאות לרגרסיה על כל הדאטה.</p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תאים 7–8</span> (סינון, OLS מסונן, גרף השוואה).
+        </span>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>מה ראינו ב-output</h3>
+        <ul>
+          <li><b>שיפוע הקו המסונן:</b> $\hat\beta_1 = -0.035$ — <b>רך בהרבה</b> מהשיפוע על כל הדאטה ($-0.055$).</li>
+          <li><b>$\text{p-value} = 0.198$ — לא מובהק.</b> אם רק הקבוצה הזאת היתה לפנינו, היינו אומרים: "<b>אין הוכחה לקשר.</b>"</li>
+          <li><b>הציור:</b> הקו הירוק (מסונן) רך הרבה יותר מהקו הכחול (כל הדאטה). אותו דאטה — שני סיפורים שונים.</li>
+          <li><b>המקרה ההיסטורי:</b> המהנדסים שהזהירו מפני השיגור הציגו דאטה מסונן. כששאלו אותם "באיזה טמפ' זה קורה?" הם הראו את 6 הטיסות עם כשלים. ההצגה הזאת — <b>בלי 17 הטיסות הבטוחות שכולן בחום</b> — הסתירה את הסיגנל.</li>
+        </ul>
+      </div>
+
+      <p><b>הלקח הסטטיסטי:</b> המידע על מה ש<b>לא</b> קרה — חשוב לא פחות מהמידע על מה שכן. <b>לסנן את ה"ניצולים" — להעלים את האות.</b> זה לא רק שגיאה טכנית — זאת תופעה חוזרת בעולם הסטטיסטיקה, עם שם משלה ועם סיפור מכונן.</p>
+
+      <div class="callout">
+        <h3>הסיפור — אברהם ולד והמטוסים שלא חזרו</h3>
+        <p><b><bdi dir="ltr">Abraham Wald (1902–1950)</bdi></b> היה סטטיסטיקאי יהודי, נולד ב-Cluj (אז הונגריה). בעקבות ה-Anschluss ב-1938, ברח מהנאצים לארה"ב. במלחמת העולם השנייה הצטרף ל-<b>Statistical Research Group</b> (SRG) באוניברסיטת קולומביה — קבוצת מחקר צבאית סודית שגייסה את גדולי הסטטיסטיקאים האמריקאים למאמץ המלחמה.</p>
+
+        <p style="margin-top:8px;"><b>הבעיה שהציבו לו (1943):</b> חיל האוויר רצה לחזק את שריון המטוסים, אבל לא יכלו לשריין הכל (משקל $=$ דלק). הם אספו מפת חורים מהמטוסים שחזרו לבסיסים — ובדקו את האזורים הצפופים ביותר. הם ביקשו מ-ולד לזהות איפה לשים את השריון.</p>
+
+        <p style="margin-top:8px;"><b>תשובת ולד</b> (פרפרזה): "אתם טועים. <b>חזקו את האזורים בלי החורים.</b> המטוסים שנפגעו במנוע, בתא הטייס או במיכלי הדלק — <b>לא חזרו</b>. מפת החורים שלכם מבוססת רק על המטוסים ששרדו, כלומר על אזורים שבהם פגיעה לא היתה קטלנית."</p>
+
+        <p style="margin-top:8px;"><b>הקבלה ל-Challenger:</b> 17 הטיסות הבטוחות בדאטה הן כמו מטוסי-החזרה של ולד. ניתוח שמסתכל רק על 6 הטיסות עם כשל — מאבד את האות. <b>לא במקרה הסיפורים מקבילים</b> — שניהם מקרי בוחן קאנוניים של <b>survivorship bias</b>.</p>
+
+        <p style="margin-top:8px; font-style:italic; font-size:0.95em;">העבודה של ולד פורסמה כסדרת SRG memoranda ב-1943, והודפסה כספר עצמאי ב-1980 — <b><bdi dir="ltr">"A Method of Estimating Plane Vulnerability Based on Damage of Survivors"</bdi></b>. ולד נפטר בתאונת מטוס בהודו ב-1950.</p>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 4 — Binary conversion + OLS breaks (cells 10–11)              -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-4">
+      <div class="section-banner">
+        <h2>פרק 4 — המרה ל-binary + OLS שובר</h2>
+      </div>
+
+      <p>נחזור לדאטה המלא. <b>אבל נעשה הגדרה חדשה של המשתנה התלוי</b>: במקום לספור את <i>מספר</i> ה-O-rings שכשלו, נשאל רק שאלה בינארית — <b>האם היה כשל בכלל?</b></p>
+
+      <div class="formula-box">
+        $\text{failure}_i = \begin{cases} 1 & \text{if } \text{num\_failure}_i \ge 1 \\ 0 & \text{otherwise} \end{cases}$
+      </div>
+
+      <p>הצדקה לסיפור: מספיק שסתום אחד נכשל כדי שהמעבורת בסיכון מיידי. הבעיה האמיתית, מנקודת מבט הנדסית, היא <b>בינארית</b>: מצב סיכון או לא מצב סיכון. עכשיו יש לנו 6 אחדות מול 17 אפסים.</p>
+
+      <p>נשאל את השאלה הקריטית: <b>מה קורה אם נריץ OLS על המשתנה הבינארי החדש?</b> מהבחינה התחבירית — שום דבר לא משתנה: <code class="ltr">sm.OLS(failure, [intercept, temp]).fit()</code>. אבל המודל ייתן תוצאות חסרות-משמעות סטטיסטית.</p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תאים 10–11</span> (יצירת <code class="ltr">failure</code> בינארי, OLS, וגרף עם תחזיות מחוץ ל-$[0,1]$).
+        </span>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>מה ראינו ב-output</h3>
+        <ul>
+          <li><b>הקשר עדיין מובהק:</b> $\hat\beta_1 = -0.041$, $\text{p-value} = 0.013$. כיוון נכון.</li>
+          <li><b>אבל תחזיות שבורות:</b> בטמפ' של $30°F$ — $\hat y = 1.894$, <b>"הסתברות" של 189%</b>. בטמפ' של $90°F$ — $\hat y = -0.556$, <b>"הסתברות" שלילית</b>.</li>
+          <li><b>הציור:</b> הקו של OLS חוצה את 1 משמאל ואת 0 מימין. שתי הרצועות האדומות הן "הסתברויות בלתי אפשריות" — חוטאות בהגדרת הסתברות.</li>
+        </ul>
+      </div>
+
+      <div class="callout">
+        <h3>מה בדיוק שובר ב-OLS על משתנה בינארי?</h3>
+        <ol>
+          <li><b>תחזיות מחוץ ל-$[0, 1]$.</b> OLS הוא קו ישר ללא הגבלה — אקסטרפולציה לקצוות הולכת ל-$\pm\infty$. הסתברות חייבת להיות מוגבלת.</li>
+          <li><b>שגיאות לא נורמליות.</b> עבור $Y_i \in \{0, 1\}$, $Y_i \sim \text{Bernoulli}(p_i)$ — לא נורמלי. ההנחה של OLS אינה מתקיימת.</li>
+          <li><b>שונות לא קבועה (heteroskedasticity).</b> $\text{Var}(Y_i) = p_i (1 - p_i)$ — תלוי ב-$X$. ב-OLS ההנחה היא שונות קבועה.</li>
+          <li><b>פירוש המקדמים בעייתי.</b> "כל $+1°F$ מוריד הסתברות ב-$0.041$" עובד בטווח מסוים, אבל לא יכול להיות נכון לכל ערך — אחרת הסתברות הופכת שלילית. <b>פירוש לינארי של הסתברות אינו מציאותי.</b></li>
+        </ol>
+        <p style="margin-top:8px;"><b>המסקנה:</b> אנחנו צריכים מודל שמטבעו מוגבל ל-$[0, 1]$, שמתאר התפלגות ברנולית, ושאת המקדמים בו אפשר לפרש באופן הגיוני. <b>זאת הכניסה ל-sigmoid.</b></p>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 5 — Sigmoid function (cells 13–14) + Enrichment #2 + Q2       -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-5">
+      <div class="section-banner">
+        <h2>פרק 5 — פונקציית sigmoid</h2>
+      </div>
+
+      <p>צריך פונקציה שלוקחת ציר ממשי שלם — מ-$-\infty$ עד $+\infty$ — וממירה אותו לערך ב-$(0, 1)$, באופן חלק ומונוטוני. הפונקציה הקלאסית לזה היא <b>סיגמואיד</b> (נקראת גם <b>logistic function</b>):</p>
+
+      <div class="formula-box">
+        $\sigma(z) = \dfrac{1}{1 + e^{-z}}$
+      </div>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תאים 13–14</span> (הגדרת sigmoid, גרף S, ועקומה ידנית על דאטה Challenger).
+        </span>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>מה ראינו בגרף</h3>
+        <ul>
+          <li><b>הצורה — S סימטרי.</b> חוצה את $0.5$ ב-$z = 0$, מתקרב ל-$0$ ב-$z \to -\infty$, מתקרב ל-$1$ ב-$z \to +\infty$. <b>בלי לקפוץ — חלקה לחלוטין.</b></li>
+          <li><b>הקיצונים:</b> $\sigma(-100) \approx 0$, $\sigma(+100) \approx 1$. גם בטווחים קיצוניים, המודל לא חורג מ-$[0, 1]$.</li>
+          <li><b>ערכי ביניים:</b> $\sigma(-3) = 0.047$, $\sigma(0) = 0.5$, $\sigma(+3) = 0.953$. כבר ב-$z = \pm 3$ אנחנו קרובים מאוד לקצוות.</li>
+        </ul>
+      </div>
+
+      <p>הרעיון של המודל הלוגיסטי הוא <b>פשוט מאוד</b>: במקום לחזות $Y$ ישירות מ-$X$ דרך קו ישר, אנחנו מחשבים <b>ציון לינארי</b> $z = \beta_0 + \beta_1 X$ — בדיוק כמו ב-OLS — ואז "מתרגמים" אותו דרך sigmoid כדי לקבל הסתברות:</p>
+
+      <div class="formula-box">
+        $\hat p(X) = P(Y = 1 \mid X) = \sigma(\beta_0 + \beta_1 X) = \dfrac{1}{1 + e^{-(\beta_0 + \beta_1 X)}}$
+      </div>
+
+      <p>זה <b>שינוי מינימלי</b> ביחס ל-OLS — צד ימין הלינארי שורד, רק שאנחנו מעבירים אותו דרך sigmoid כדי לקבל הסתברות חוקית. כל הכלים שלמדנו (מקדמים, p-values, פירוש $\beta_1$ — אם כי בשינויים שנראה בהמשך) ממשיכים לעבוד.</p>
+
+      <div class="qa">
+        <div class="question">
+          <b>שאלה לכיתה:</b> במודל הלוגיסטי $\hat p = \sigma(\beta_0 + \beta_1 X)$ — <b>אם $\beta_1 = 0$</b>, איך תיראה העקומה? מה זה אומר על הקשר בין $X$ ל-$Y$?
+        </div>
+        <button class="toggle-btn">גלה תשובה</button>
+        <div class="answer">
+          <p>אם $\beta_1 = 0$, אז $z = \beta_0$ עבור כל $X$ — הציון הלינארי <b>אינו תלוי ב-$X$</b>. לכן $\hat p = \sigma(\beta_0)$ — <b>קבוע</b>.</p>
+          <p style="margin-top:8px;"><b>הגרף:</b> קו אופקי בגובה $\sigma(\beta_0)$. למשל, אם $\beta_0 = 0$ — קו אופקי ב-$0.5$. אם $\beta_0 = 2$ — קו אופקי ב-$\sigma(2) \approx 0.88$.</p>
+          <p style="margin-top:8px;"><b>המסקנה:</b> הסתברות לאירוע <b>אינה תלויה ב-$X$</b>. ה-sigmoid לא חשובה כאן בכלל — היא רק "מתרגמת" קבוע אחד לקבוע אחר. <b>המקבילה הסטטיסטית ל-OLS עם שיפוע אפס:</b> אין מה לחזות מ-$X$. מבחן Wald על $\beta_1$ ייתן p-value גבוה, ונאמר ש-$X$ אינו מסביר את $Y$.</p>
+        </div>
+      </div>
+
+      <div class="callout">
+        <h3>למה דווקא sigmoid?</h3>
+        <p>פונקציית sigmoid אינה היחידה בעולם שמעבירה את הציר הממשי ל-$(0, 1)$. אז למה היא זכתה למקום המרכזי ב-Logistic Regression?</p>
+
+        <p style="margin-top:8px;"><b>תכונות נחוצות לפונקציית קישור</b> (בהקשר של <b>GLM</b> — Generalized Linear Models):</p>
+        <ol style="margin:6px 0;">
+          <li><b>מוגבלת ל-$(0, 1)$</b> — כי מחזירה הסתברות.</li>
+          <li><b>חלקה וגזירה</b> — כדי שאלגוריתמי אופטימיזציה יעבדו.</li>
+          <li><b>מונוטונית</b> — שמירה על סדר.</li>
+          <li><b>בעלת היפוך מסוים</b> — כדי שאפשר יהיה להבטיח אינטרפרטציה למקדמים.</li>
+        </ol>
+
+        <p style="margin-top:8px;"><b>חלופות:</b></p>
+        <ul style="margin:6px 0;">
+          <li><b>probit</b> — $\Phi(z)$, פונקציית התפלגות נורמלית סטנדרטית.</li>
+          <li><b>cloglog</b> — $1 - e^{-e^z}$ (Complementary log-log).</li>
+          <li>וכמובן <b>logistic</b> — $\sigma(z) = 1/(1+e^{-z})$.</li>
+        </ul>
+        <p>כולן בצורת S, כולן מוגבלות ל-$(0, 1)$, כולן חלקות ומונוטוניות.</p>
+
+        <p style="margin-top:8px;"><b>למה logistic זכתה בקרב:</b></p>
+        <ol style="margin:6px 0;">
+          <li><b>פירוש המקדמים — דרך log-odds</b> (נראה בפרק 8). הצורה $\log(p/(1-p)) = \beta_0 + \beta_1 X$ היא לינארית, ולכן $\beta_1$ ניתן לפירוש דרך <b>odds ratios</b>.</li>
+          <li><b>נגזרת נוחה:</b> $\sigma'(z) = \sigma(z)(1 - \sigma(z))$ — נוסחה אנליטית פשוטה.</li>
+          <li><b>מאפיינים סטטיסטיים:</b> logistic הוא <b>canonical link</b> של ההתפלגות הברנולית ב-GLM, מה שנותן לו תכונות אופטימליות מסוימות.</li>
+        </ol>
+
+        <p style="margin-top:8px;"><b>בקורס שלנו — sigmoid.</b> זאת הברירה הסטנדרטית, וזאת הפונקציה שאחריה רוב המאמרים, החבילות, וההסברים נוסעים.</p>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 6 — sm.Logit + summary (cell 16) + Q1 (survey)                -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-6">
+      <div class="section-banner">
+        <h2>פרק 6 — <code class="ltr">sm.Logit</code> + פירוש ה-summary</h2>
+      </div>
+
+      <p>עכשיו שיש לנו את המודל — $\hat p = \sigma(\beta_0 + \beta_1 X)$ — נשאר רק לאמוד את $\beta_0$ ו-$\beta_1$. ב-statsmodels זה ב-API שכבר מוכר: <code class="ltr">sm.Logit(y, X).fit()</code>. ההבדל היחיד מ-OLS הוא <b>המנגנון הפנימי</b> — אין כאן פתרון סגור מסוג $\hat\beta = (X^T X)^{-1} X^T y$.</p>
+
+      <div class="callout">
+        <h3>איך statsmodels מוצא את $\hat\beta$?</h3>
+        <p>הוא משתמש בשיטה שנקראת <b>Maximum Likelihood Estimation (MLE)</b> — מוצא את ה-$\hat\beta$ שעבורו <b>פונקציית הנראות</b> מקסימלית (כלומר, ההסתברות לראות את הדאטה שלנו תחת המודל היא הגבוהה ביותר). זה נעשה דרך אלגוריתם נומרי (Newton-Raphson על log-likelihood). <b>לא ניכנס לזה כאן — שיעור 08 ייעמיק.</b></p>
+        <p style="margin-top:8px;">מה שכן חשוב לדעת היום: יש פונקציית מטרה נומרית, אופטימיזציה נומרית, ובסוף — מקדמים אמודים $\hat\beta_0, \hat\beta_1$ שמופיעים ב-<code class="ltr">summary()</code> בדיוק כמו ב-OLS.</p>
+      </div>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תא 16</span> (<code class="ltr">sm.Logit + summary</code> + AIC/BIC/pseudo-$R^2$).
+        </span>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>מה ראינו ב-summary</h3>
+        <ul>
+          <li><b>מקדמים:</b> $\hat\beta_0 = 23.22$, $\hat\beta_1 = -0.358$. שניהם <b>מובהקים</b> ($\text{p-value} &lt; 0.05$).</li>
+          <li><b>מבחן Wald:</b> הטור של ערך ה-p נקרא <code class="ltr">P&gt;|z|</code> — לא <code class="ltr">P&gt;|t|</code> כמו ב-OLS. <b>למה?</b> כי כאן ההתפלגות תחת $H_0: \beta_j = 0$ היא <b>נורמלית סטנדרטית</b> (אסימפטוטית, דרך MLE) ולא $t$. הסטטיסטיקה $\hat\beta_j / \text{SE}(\hat\beta_j)$ נקראת <b>Wald statistic</b>. הפירוש שלה זהה ל-$t$ — קטן מ-$0.05$ זה מובהק.</li>
+          <li><b>Pseudo $R^2$ (McFadden):</b> $0.464$. נראה דומה ל-$R^2$ — אבל <b>לא</b> את אותו הפירוש. אין כאן "אחוז שונות מוסברת". הוא משמש בעיקר להשוואת מודלים על אותו דאטה. <b>עומק בשיעור 09.</b></li>
+          <li><b>AIC ו-BIC:</b> $18.14$ ו-$20.41$. מדדים להשוואה בין מודלים — נמוך יותר, טוב יותר. <b>גם אלה ייכנסו לעומק בשיעור 09.</b></li>
+        </ul>
+      </div>
+
+      <div class="qa">
+        <div class="question">
+          <b>שאלה לכיתה (survey פתוח):</b> חשבו על העולם שלכם — איזה אירוע <b>בינארי</b> הייתם רוצים לחזות הסתברות שלו? (תקלת ציוד, תאונה, כשל מערכת, default על הלוואה — מה שבא לכם.) שתפו עם השכן/ה ליד.
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 7 — predict() + Challenger point (cell 18)                    -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-7">
+      <div class="section-banner">
+        <h2>פרק 7 — תחזית עם <code class="ltr">predict()</code> + נקודת ה-Challenger</h2>
+      </div>
+
+      <p>יש לנו מודל אמוד. עכשיו נחזה. בדיוק כמו ב-OLS, ב-statsmodels זה <code class="ltr">result.predict(X_new)</code> — אבל הפלט <b>שונה</b>: במקום ערך רציף, מקבלים <b>הסתברות</b> ב-$(0, 1)$.</p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תא 18</span> (predict, גרף עם הדאטה ההיסטורי + נקודת ה-Challenger).
+        </span>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>מה ראינו בגרף</h3>
+        <ul>
+          <li><b>העקומה הלוגיסטית</b> — צורת S, מתחילה גבוהה משמאל (בטמפ' נמוכה) ויורדת לקרבה ל-$0$ ימינה (בטמפ' גבוהה). בדיוק מה שציפינו מ-sigmoid.</li>
+          <li><b>הנקודה האדומה — ה-Challenger ב-$30.5°F$.</b> מודגשת מחוץ לטווח של הדאטה ההיסטורי, על הקו $y = 1$.</li>
+          <li><b>$\hat p(30.5°F) \approx 1.000$</b> — כמעט וודאי שיהיה כשל O-ring. <b>סטטיסטית, האסון היה צפוי.</b></li>
+        </ul>
+      </div>
+
+      <div class="callout">
+        <h3>נקודות חשובות מהתחזית</h3>
+        <ul>
+          <li><b>אקסטרפולציה:</b> $30.5°F$ נמצא <b>מחוץ לטווח של הדאטה ההיסטורי</b> ($53–81°F$). זאת אקסטרפולציה — צריך להזהיר. אבל גם בטמפ' הנמוכה בדאטה ($53°F$) ההסתברות $\approx 0.99$. הקו עולה בחדות אל $1$ הרבה לפני $30.5°F$.</li>
+          <li><b>נקודות עניין:</b> ב-$65°F$ ההסתברות $\approx 0.5$ — <b>הסף הקלאסי</b>. ב-$70°F$ ההסתברות יורדת ל-$0.14$. ב-$81°F$ (טמפ' המקסימום בדאטה) ההסתברות $\approx 0.003$ — כמעט אפס.</li>
+          <li><b>הקו אינו לינארי בהסתברות.</b> השינוי המהיר ביותר הוא סביב $z = 0$ (כאן $\approx 65°F$). ב-קצוות, השינוי נמוך — תכונה מובנית של sigmoid.</li>
+          <li><b>החלטה בינארית:</b> $\hat p &gt; 0.5$ — חוזים $\hat Y = 1$ (יהיה כשל). $\hat p &lt; 0.5$ — חוזים $\hat Y = 0$. בחירת הסף 0.5 היא ברירת מחדל; ב-Challenger הסף הסביר הוא הרבה יותר נמוך — אפילו $\hat p &gt; 0.1$ צריך להדליק נורה אדומה. <b>בחירת סף ההחלטה נדון בשיעור 09.</b></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 8 — logit and odds ratio (cell 20) + Enrichment #3 + Q3       -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-8">
+      <div class="section-banner">
+        <h2>פרק 8 — logit ו-odds ratio</h2>
+      </div>
+
+      <p>ראינו את המודל $\hat p = \sigma(\beta_0 + \beta_1 X)$ — הסתברות שאינה לינארית ב-$X$. אבל יש <b>הצגה שקולה</b> שבה המודל <b>כן</b> לינארי. נסתכל על מה שנקרא <b>logit</b>:</p>
+
+      <div class="formula-box">
+        $\text{logit}(p) = \log\dfrac{p}{1 - p} = \beta_0 + \beta_1 X$
+      </div>
+
+      <p>הצד הימני הוא בדיוק הציון הלינארי $z$. הצד השמאלי נקרא <b>log-odds</b> — הלוגריתם הטבעי של היחס בין הסתברות לאירוע להסתברות לאי-אירוע. <b>המודל הוא לינארי ב-log-odds</b> — כל מה שלמדנו ברגרסיה לינארית (מקדמים, p-values, אינטרפרטציה כשינוי קצוב) <b>עובד ב-scale הזה</b>.</p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תא 20</span> (3 צירים: $p$, odds, log-odds — ו-Odds Ratio).
+        </span>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>מה ראינו בשלושת הצירים</h3>
+        <ul>
+          <li><b>הסתברות $p(X)$:</b> צורת S — לא לינארית.</li>
+          <li><b>Odds $p/(1-p)$:</b> ערכים בין $0$ ל-$\infty$. <b>הציר ב-log scale</b> (כי אחרת הקצב יוצר קפיצה דרמטית). יורד אקספוננציאלית.</li>
+          <li><b>Log-odds $\log(p/(1-p))$:</b> <b>קו ישר.</b> זה הסקייל שעליו המודל לינארי — הקו שווה ל-$23.22 - 0.358 \cdot \text{temp}$.</li>
+        </ul>
+      </div>
+
+      <p>על הסקייל של log-odds המקדם $\hat\beta_1$ מקבל פירוש פשוט: <b>כל $+1$ ב-$X$ מוסיף $\hat\beta_1$ ל-log-odds</b>. אבל מי חושב במונחי log-odds? הפירוש המוחשי הוא דרך <b>odds ratio</b>:</p>
+
+      <div class="formula-box">
+        $\dfrac{\text{odds}(X + 1)}{\text{odds}(X)} = e^{\hat\beta_1}$
+      </div>
+
+      <p>זה ה-<b>Odds Ratio</b>. כל $+1$ ב-$X$ <b>מכפיל</b> את ה-odds לאירוע ב-$e^{\hat\beta_1}$ — לא מוסיף, <b>מכפיל</b>.</p>
+
+      <div class="callout">
+        <h3>Odds Ratio — מה זה אומר על Challenger</h3>
+        <p><b>$\hat\beta_1 = -0.358$:</b> כל $+1°F$ מוסיף $-0.358$ ל-log-odds. במונחי odds:</p>
+        <ul style="margin:6px 0;">
+          <li>$e^{-0.358} = 0.699$. <b>כל $+1°F$ מכפיל את ה-odds לכשל ב-$0.70$</b> — יורדים ב-$30\%$.</li>
+          <li>במהופך: <b>כל $-1°F$ מכפיל את ה-odds ב-$1/0.70 \approx 1.43$</b> — גדלים ב-$43\%$.</li>
+          <li>על פני הפרש של $40°F$ ($30 \to 70$): ה-odds מוכפלים ב-$e^{40 \cdot 0.358} \approx 1.6 \cdot 10^6$. <b>פי מיליון וחצי.</b> זה ההפרש בין החללית של $70°F$ ל-$30.5°F$.</li>
+        </ul>
+      </div>
+
+      <div class="qa">
+        <div class="question">
+          <b>שאלה לכיתה:</b> אמדנו במודל לוגיסטי $\hat p = 0.8$ לאדם מסוים. מה ה-<b>odds</b> שלו לאירוע? פי כמה יותר סביר שהאירוע יקרה מאשר לא?
+        </div>
+        <button class="toggle-btn">גלה תשובה</button>
+        <div class="answer">
+          <p>$\text{odds} = \dfrac{p}{1 - p} = \dfrac{0.8}{0.2} = 4$.</p>
+          <p style="margin-top:8px;"><b>פירוש:</b> $4$ לטובת אירוע על כל $1$ נגדו — האירוע <b>פי 4 יותר סביר</b> מאי-האירוע.</p>
+          <p style="margin-top:8px;"><b>שימו לב להבחנה:</b> $p = 0.8$ זאת הסתברות. $\text{odds} = 4$ זה יחס. <b>שני סקיילים שונים של אותו דבר.</b> $p$ נע ב-$(0, 1)$, $\text{odds}$ נע ב-$(0, \infty)$, $\log(\text{odds})$ נע ב-$(-\infty, +\infty)$. המודל הלוגיסטי לינארי בסקייל האחרון — log-odds.</p>
+          <p style="margin-top:8px;"><b>השלכה לפירוש המקדמים:</b> המקדם $\beta_1$ <b>אינו</b> משנה הסתברות בקצב קבוע. הוא משנה log-odds בקצב קבוע. הוא משנה odds עצמם בקצב <b>מכפלתי</b> של $e^{\beta_1}$. <b>זה הקצב שאפשר לפרש לסטודנט באופן הכי מוחשי.</b></p>
+        </div>
+      </div>
+
+      <div class="callout">
+        <h3>Odds Ratio — טבלת המרה מ-$\beta$ ל-$e^\beta$</h3>
+        <p>כדי לפתח אינטואיציה למקדמים בלוגיסטית, הנה טבלה שמראה איך מקדם בסקייל log-odds מתרגם ל-Odds Ratio (פעולה על odds עצמם):</p>
+
+        <table style="width:100%; border-collapse:collapse; margin:8px 0; font-size:0.95em;">
+          <thead>
+            <tr style="border-bottom:2px solid var(--color-border);">
+              <th style="padding:6px 12px; text-align:right;">$\beta$ (log-odds)</th>
+              <th style="padding:6px 12px; text-align:right;">$e^\beta$ (Odds Ratio)</th>
+              <th style="padding:6px 12px; text-align:right;">משמעות עבור $+1$ ב-$X$</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td style="padding:5px 12px;">$-2.0$</td><td style="padding:5px 12px;">$0.135$</td><td style="padding:5px 12px;">ה-odds יורדים ל-$13.5\%$ מערכם</td></tr>
+            <tr><td style="padding:5px 12px;">$-1.0$</td><td style="padding:5px 12px;">$0.368$</td><td style="padding:5px 12px;">ה-odds יורדים ל-$37\%$</td></tr>
+            <tr><td style="padding:5px 12px;">$-0.5$</td><td style="padding:5px 12px;">$0.607$</td><td style="padding:5px 12px;">ה-odds יורדים ל-$61\%$</td></tr>
+            <tr style="background:var(--color-callout-bg);"><td style="padding:5px 12px;"><b>$-0.358$</b></td><td style="padding:5px 12px;"><b>$0.699$</b></td><td style="padding:5px 12px;"><b>(Challenger temp coef) ה-odds יורדים ל-$70\%$</b></td></tr>
+            <tr><td style="padding:5px 12px;">$0$</td><td style="padding:5px 12px;">$1.0$</td><td style="padding:5px 12px;">אין השפעה — קו אופקי</td></tr>
+            <tr><td style="padding:5px 12px;">$+0.5$</td><td style="padding:5px 12px;">$1.65$</td><td style="padding:5px 12px;">ה-odds עולים ב-$65\%$</td></tr>
+            <tr><td style="padding:5px 12px;">$+1.0$</td><td style="padding:5px 12px;">$2.72$</td><td style="padding:5px 12px;">ה-odds מוכפלים פי $2.72$</td></tr>
+            <tr><td style="padding:5px 12px;">$+2.0$</td><td style="padding:5px 12px;">$7.39$</td><td style="padding:5px 12px;">ה-odds מוכפלים פי $7.39$</td></tr>
+          </tbody>
+        </table>
+
+        <p style="margin-top:8px;"><b>כלל אצבע פדגוגי:</b> סטודנט שאומר "המקדם הוא $-0.358$, אז ההסתברות יורדת ב-$35.8\%$ לכל מעלה" — <b>טועה</b>. הפירוש הנכון: <b>ה-odds מוכפלים ב-$0.70$</b>. ההפרש בהסתברות תלוי בהסתברות הבסיס ואינו קבוע.</p>
+
+        <p style="margin-top:8px;"><b>השלכה לרגרסיה לוגיסטית מרובת משתנים</b> (שתעלה בקורסים מתקדמים): כל מקדם פועל באופן עצמאי באמצעות $e^{\beta_j}$ — מכפיל את ה-odds ביחס מסוים, <b>בהנחה ששאר המשתנים קבועים</b> ("ceteris paribus"). זה החלף הלוגיסטי לפירוש המקדמים ב-OLS מרובה משתנים.</p>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 9 — Closing & student exercise (cells 21–22)                  -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-9">
+      <div class="section-banner">
+        <h2>פרק 9 — סיכום + הצצה לשיעור 08</h2>
+      </div>
+
+      <p>סיימנו את <b>היום הראשון</b> של בלוק הלוגיסטית. ראינו <b>למה</b> OLS לא מספיק לבינארי, מהי <b>פונקציית sigmoid</b>, איך מריצים <b>sm.Logit</b>, איך מפרשים את <b>המקדמים</b> דרך log-odds ו-odds ratio. בשיעור 08 נחזור לעמוד אחד — <b>MLE</b> — איך statsmodels בעצם מוצא את $\hat\beta$.</p>
+
+      <div class="qa">
+        <div class="question">
+          <b>תרגיל קצר (אופציונלי, לבית):</b> על דאטה Challenger אמדנו $\hat p = \sigma(23.22 - 0.358 \cdot \text{temp})$. חשבו ידנית (או עם python):
+          <ol style="margin:8px 0;">
+            <li>ההסתברות לכשל בטמפ' $50°F$?</li>
+            <li>ה-odds בטמפ' $50°F$?</li>
+            <li>פי כמה הם גדולים מה-odds בטמפ' $80°F$?</li>
+          </ol>
+        </div>
+        <button class="toggle-btn">גלה תשובה</button>
+        <div class="answer">
+          <p><b>(א)</b> $z = 23.22 - 0.358 \cdot 50 = 5.32$. $\sigma(5.32) = 1/(1 + e^{-5.32}) \approx 0.995$. <b>הסתברות $\approx 99.5\%$.</b></p>
+          <p style="margin-top:6px;"><b>(ב)</b> $\text{odds} = 0.995 / 0.005 = 199$.</p>
+          <p style="margin-top:6px;"><b>(ג)</b> בטמפ' $80°F$: $z = 23.22 - 0.358 \cdot 80 = -5.42$. $\sigma(-5.42) \approx 0.0044$. $\text{odds} \approx 0.0044$. היחס: $199 / 0.0044 \approx 45{,}000$.</p>
+          <p style="margin-top:8px;"><b>שיטה מהירה יותר:</b> ההפרש בטמפ' $= 30°F$. ה-odds מוכפלים ב-$e^{30 \cdot \beta_1} = e^{30 \cdot (-0.358)} = e^{-10.74} \approx 2.2 \cdot 10^{-5}$. <b>היחס הוא $1/2.2 \cdot 10^{-5} \approx 45{,}000$.</b> אותה התשובה — דרך נוסחת ה-odds ratio.</p>
+        </div>
+      </div>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תאים 22–23</span> (<code class="ltr">Write your answer here</code> + תא קוד ריק).
+        </span>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- SUMMARY — Recap + bridge to lesson 08                                -->
+    <!-- ================================================================== -->
+    <section class="block" id="summary">
+      <div class="section-banner">
+        <h2>סיכום + הצצה לשיעור 08</h2>
+      </div>
+
+      <div class="callout">
+        <h3>5 נקודות לקחת מהיום</h3>
+        <ol>
+          <li><b>משתנה תלוי בינארי שובר OLS.</b> תחזיות מחוץ ל-$[0, 1]$, שגיאות לא נורמליות (ברנולי), שונות לא קבועה. צריך מודל אחר.</li>
+          <li><b>Survivorship bias</b> הוא סכנה נפרדת — לפני שבכלל בוחרים מודל. <b>לא לסנן את ה"ניצולים"</b> (ולד והמטוסים). הקבלה ישירה ל-Challenger: 17 הטיסות הבטוחות הן חלק קריטי מהסיגנל.</li>
+          <li><b>פונקציית sigmoid</b> $\sigma(z) = 1/(1+e^{-z})$ ממירה ציון לינארי $z = \beta_0 + \beta_1 X$ להסתברות חוקית ב-$(0, 1)$.</li>
+          <li><b><code class="ltr">sm.Logit</code> ב-statsmodels</b> מבצע MLE ברקע. ה-summary דומה ל-OLS — אבל הטור הוא <code class="ltr">P&gt;|z|</code> (Wald, לא $t$), ויש Pseudo $R^2$ במקום $R^2$.</li>
+          <li><b>המודל לינארי ב-log-odds:</b> $\log(p/(1-p)) = \beta_0 + \beta_1 X$. המקדם $\beta_1$ פועל ב-<b>odds</b> דרך $e^{\beta_1}$ — Odds Ratio. כל $+1$ ב-$X$ <b>מכפיל</b> את ה-odds, לא מוסיף להסתברות.</li>
+        </ol>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>בשיעור 08 — Maximum Likelihood Estimation (MLE)</h3>
+        <p>היום אמרנו ש-<code class="ltr">sm.Logit</code> משתמש ב-MLE — בלי להיכנס לעומק. <b>מה זה אומר?</b> איך statsmodels בוחר את $\hat\beta$?</p>
+        <p style="margin-top:8px;"><b>אינטואיציה:</b> נמצא את $\hat\beta$ שעבורו ההסתברות לראות בדיוק את הדאטה שיש לנו היא הגבוהה ביותר. דוגמה פשוטה: ראינו שחקן כדורסל קולע 7 מתוך 10 — מה $\hat p$ ה"הכי סביר" שמסביר את זה? נראה את <b>פונקציית הנראות</b> $L(\beta)$, <b>log-likelihood</b> $\ell(\beta)$, את הקשר ל-OLS (גם הוא MLE — תחת הנחת שגיאות נורמליות), ואת שיטות האופטימיזציה הנומריות.</p>
+        <p style="margin-top:8px;"><b>שיעור 09 — Confusion Matrix & Evaluation:</b> נחזור ל-Pseudo $R^2$, AIC, BIC לעומק; נדבר על בחירת סף החלטה (False Positive vs False Negative — בהקשר Challenger ברור איזו שגיאה יקרה יותר); confusion matrix, precision, recall, ו-ROC curve.</p>
+      </div>
+
+    </section>
+
+  </main>
+
+  <footer class="lesson-footer">
+    Regression Course — Lesson 07 · TA: Raz Elbaz · עודכן: 2026-05-25
+  </footer>
+
+  <script src="shared/interactivity.js"></script>
+</body>
+</html>
