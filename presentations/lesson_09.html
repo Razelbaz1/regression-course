@@ -1,0 +1,459 @@
+<!doctype html>
+<!--
+  Lesson 09 — Confusion Matrix & Evaluation (Logistic block 3/3)
+  Aligned with: lesson_plans/lesson_09.md (7 blocks + summary)
+  Notebook anchor: regression-course/lesson9/Tirgul.ipynb (17 cells)
+-->
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lesson 09 — Confusion Matrix & Evaluation</title>
+
+  <link rel="stylesheet" href="shared/palette.css">
+  <link rel="stylesheet" href="shared/components.css">
+  <link rel="stylesheet" href="shared/styles.css">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+          onload="renderMathInElement(document.body, {delimiters: [{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}]});"></script>
+</head>
+
+<body>
+
+  <header class="lesson-nav">
+    <a href="lesson_08.html"><bdi dir="ltr">←</bdi> השיעור הקודם: MLE</a>
+    <span class="lesson-name">Lesson 09 — Confusion Matrix & Evaluation</span>
+    <a href="lesson_10.html">השיעור הבא: Poisson <bdi dir="ltr">→</bdi></a>
+  </header>
+
+  <main>
+
+    <div class="lesson-title-banner">
+      <h1>Regression Course — Lesson 09</h1>
+      <div class="subtitle">Confusion Matrix & Evaluation — מהסתברות להחלטה ולהערכה</div>
+      <span class="pill">פרק: Logistic (3/3)</span>
+    </div>
+
+    <div class="prev-reminder">
+      <strong>תזכורת מהשיעור הקודם:</strong> ראינו ש-MLE היא הדרך של statsmodels למצוא את $\hat\beta$ — "תחת איזה $\beta$ הדאטה הכי סביר?" — דרך המטבע (אינטואיציה), קווי likelihood (ויזואלית), ואופטימיזציה נומרית (אנלוגיית הר). בסוף השיעור היה לנו מודל מאומד שמחזיר $\hat p$. <b>היום:</b> איך הופכים את $\hat p$ להחלטה? ואיך מודדים אם ההחלטה היתה טובה?
+    </div>
+
+    <nav class="toc">
+      <h2>תוכן עניינים</h2>
+      <ol>
+        <li><a href="#block-1">פרק 1 — מהסתברות להחלטה</a></li>
+        <li><a href="#block-2">פרק 2 — Threshold + confusion matrix</a></li>
+        <li><a href="#block-3">פרק 3 — למה accuracy לא מספיק</a></li>
+        <li><a href="#block-4">פרק 4 — Precision, Recall, F1</a></li>
+        <li><a href="#block-5">פרק 5 — ROC + AUC</a></li>
+        <li><a href="#block-6">פרק 6 — בחירת threshold לפי context</a></li>
+        <li><a href="#block-7">פרק 7 — סיכום + הצצה לשיעור 10</a></li>
+        <li><a href="#summary">סיכום + הצצה לשיעור 10</a></li>
+      </ol>
+    </nav>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 1 — From probability to decision                              -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-1">
+      <div class="section-banner">
+        <h2>פרק 1 — מהסתברות להחלטה</h2>
+      </div>
+
+      <p>בשיעורים 07-08 בנינו מודל לוגיסטי שמחזיר <b>הסתברות</b>: $\hat p = \sigma(\hat\beta_0 + \hat\beta_1 X)$. עבור Challenger בטמפ' $50°F$ קיבלנו $\hat p \approx 0.995$, ועבור $80°F$ קיבלנו $\hat p \approx 0.004$.</p>
+
+      <p>אבל <b>מנהל הבטיחות לא יכול לעשות שום דבר עם הסתברות</b>. הוא צריך החלטה: <b>לשגר או לא לשגר?</b> "0.4" אינה תשובה — צריך <b>כן</b> או <b>לא</b>.</p>
+
+      <div class="callout">
+        <h3>הכלל הקלאסי — Threshold</h3>
+        <p>הופכים הסתברות להחלטה דרך <b>סף</b>:</p>
+        <div class="formula-box">
+          $\hat Y = \begin{cases} 1 & \hat p \ge \text{threshold} \\ 0 & \text{otherwise} \end{cases}$
+        </div>
+        <p style="margin-top:8px;"><b>ברירת המחדל threshold = 0.5</b> — מנבאים $1$ אם המודל אומר "סביר יותר ממחצית". אבל <b>זאת לא חובה</b>. בעיות שונות דורשות סף שונה — נראה למה.</p>
+      </div>
+
+      <div class="qa">
+        <div class="question">
+          <b>שאלה לכיתה (survey פתוח):</b> המודל אמר $\hat p = 0.4$ לתצפית מסוימת. <b>להזעיק או לא?</b> מה אתם בוחרים, ומה הסיכון בכל בחירה?
+        </div>
+      </div>
+
+      <p>היום נראה איך לבחור threshold בצורה מושכלת, איך מודדים את ביצועי המודל אחרי שבחרנו, ואיזה מדדים בכלל קיימים. נסיים את בלוק הלוגיסטיק ונגיע ל-<b>confusion matrix</b>, <b>precision/recall/F1</b>, <b>ROC</b> ו-<b>AUC</b>.</p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תא 2</span> (טעינת המודל מ-07-08).
+        </span>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 2 — Threshold + confusion matrix                              -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-2">
+      <div class="section-banner">
+        <h2>פרק 2 — Threshold + confusion matrix</h2>
+      </div>
+
+      <p>נחיל את הכלל הקלאסי על Challenger. נבחר $t = 0.5$, נקבל החלטות $\hat Y_i$, ונשווה לאמת $Y_i$. **4 מצבים אפשריים** לכל תצפית:</p>
+
+      <div class="callout callout--accent">
+        <h3>4 המצבים — Confusion Matrix</h3>
+        <table style="width:100%; border-collapse:collapse; margin:8px 0; text-align:center;">
+          <thead>
+            <tr style="border-bottom:2px solid var(--color-border);">
+              <th style="padding:8px;"></th>
+              <th style="padding:8px;">חיזוי $\hat Y = 0$</th>
+              <th style="padding:8px;">חיזוי $\hat Y = 1$</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td style="padding:8px; font-weight:bold;">בפועל $Y = 0$</td><td style="padding:8px;">TN <i>(true negative)</i></td><td style="padding:8px;">FP <i>(false positive)</i></td></tr>
+            <tr><td style="padding:8px; font-weight:bold;">בפועל $Y = 1$</td><td style="padding:8px;">FN <i>(false negative)</i></td><td style="padding:8px;">TP <i>(true positive)</i></td></tr>
+          </tbody>
+        </table>
+        <ul style="margin-top:8px;">
+          <li><b>TP</b> — חזינו $1$ ובאמת היה $1$. נכון.</li>
+          <li><b>TN</b> — חזינו $0$ ובאמת היה $0$. נכון.</li>
+          <li><b>FP</b> — חזינו $1$ אבל היה $0$. <b>שגיאה — "אזעקת שווא"</b>.</li>
+          <li><b>FN</b> — חזינו $0$ אבל היה $1$. <b>שגיאה — "פספסנו אירוע".</b></li>
+        </ul>
+      </div>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תא 4</span> (confusion matrix ב-threshold = 0.5).
+        </span>
+      </div>
+
+      <div class="callout">
+        <h3>תוצאות Challenger ב-$t = 0.5$</h3>
+        <table style="width:100%; border-collapse:collapse; margin:8px 0; text-align:center;">
+          <thead>
+            <tr style="border-bottom:2px solid var(--color-border);">
+              <th style="padding:8px;"></th>
+              <th style="padding:8px;">חיזוי $\hat Y = 0$</th>
+              <th style="padding:8px;">חיזוי $\hat Y = 1$</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td style="padding:8px; font-weight:bold;">בפועל $Y = 0$</td><td style="padding:8px;"><b>TN = 17</b></td><td style="padding:8px;">FP = 0</td></tr>
+            <tr><td style="padding:8px; font-weight:bold;">בפועל $Y = 1$</td><td style="padding:8px;">FN = 2</td><td style="padding:8px;"><b>TP = 4</b></td></tr>
+          </tbody>
+        </table>
+        <ul>
+          <li><b>$0$ אזעקות שווא</b> — מצוין. המודל לא מבהיל את הוועדה לחינם.</li>
+          <li><b>אבל פספסנו $2$ מתוך $6$ כשלים אמיתיים</b>. שני שיגורים שהמודל "אישר" אבל הסתיימו בכשל.</li>
+          <li><b>השאלה:</b> זה מודל טוב או רע? נראה איך מודדים, ונבחין שהתשובה תלויה במדד.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 3 — Why accuracy isn't enough                                 -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-3">
+      <div class="section-banner">
+        <h2>פרק 3 — למה accuracy לא מספיק</h2>
+      </div>
+
+      <p>המדד הראשון והאינטואיטיבי ביותר הוא <b>accuracy</b> — אחוז התחזיות הנכונות:</p>
+
+      <div class="formula-box">
+        $\text{Accuracy} = \dfrac{TP + TN}{TP + TN + FP + FN} = \dfrac{\text{נכונות}}{\text{סה"כ}}$
+      </div>
+
+      <p>ב-Challenger: $\text{Accuracy} = (4 + 17) / 23 = 0.913 = 91.3\%$. <b>נשמע מצוין.</b> אבל לפני שמסיקים — נסתכל על baseline פשוט.</p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תא 6</span> (השוואה ל-baseline "תמיד שלילי").
+        </span>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>הניסוי השובר — "תמיד חזה 0"</h3>
+        <p>בנו <b>מודל טריוויאלי</b>: ללא קשר ל-$X$, החזר תמיד $\hat Y = 0$. **שום הסתברות, שום סף, שום מודל בכלל.**</p>
+        <ul>
+          <li>TP = 0, FP = 0, TN = 17, FN = 6</li>
+          <li><b>Accuracy = 17/23 = 0.739 ($73.9\%$)</b></li>
+        </ul>
+        <p style="margin-top:8px;">המודל הטריוויאלי מקבל <b>$73.9\%$ accuracy</b>. שלנו מקבל $91.3\%$. ההפרש <b>קיים</b>, אבל הוא <b>קטן</b> ביחס למה שהמודל באמת מציע. וזה <b>מסתיר</b> את העובדה ש-baseline-ה תפסה <b>אפס כשלים אמיתיים</b>.</p>
+        <p style="margin-top:8px;"><b>הלקח:</b> ב-דאטה לא-מאוזן (כאן $26\%$ חיוביים, ובעולם האמיתי לפעמים $1\%$), accuracy מטעה. <b>צריך מדדים שמודדים את היכולת לזהות את המחלקה הקטנה</b> — וזה Precision ו-Recall.</p>
+      </div>
+
+      <div class="qa">
+        <div class="question">
+          <b>שאלה לכיתה:</b> דאטה חדש: $99\%$ מהתצפיות הן שליליות (אין אירוע). בניתי מודל פשוט שתמיד חוזה $0$. <b>המודל נכון ב-$99\%$ מהמקרים.</b> המודל טוב?
+        </div>
+        <button class="toggle-btn">גלה תשובה</button>
+        <div class="answer">
+          <p><b>לא.</b> Accuracy = $99\%$ נראה גבוה, אבל <b>Recall = 0</b> — המודל מפספס לחלוטין את המחלקה החיובית. בסיווג רפואי, היה מפספס $100\%$ מהחולים. בזיהוי הונאות, היה מפספס $100\%$ מההונאות.</p>
+          <p style="margin-top:8px;"><b>בכל בעיית סיווג בה המחלקות לא מאוזנות — accuracy בלבדה היא מטעה.</b> צריך גם <b>Recall</b> (כמה תפסנו) ו-<b>Precision</b> (כמה צדקנו כשניבאנו חיובי). בדוגמה שלנו ב-Challenger ($26\%$ חיוביים): "תמיד חוזה $0$" נותן $74\%$ accuracy אבל $0\%$ recall. אותה תופעה.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 4 — Precision, Recall, F1                                     -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-4">
+      <div class="section-banner">
+        <h2>פרק 4 — Precision, Recall, F1</h2>
+      </div>
+
+      <p>הצגנו את accuracy. עכשיו 3 המדדים שמתקנים את החולשה שלו — כל אחד מודד <b>זווית שונה</b> של ביצועי המודל.</p>
+
+      <div class="formula-box">
+        $\text{Precision} = \dfrac{TP}{TP + FP}$
+      </div>
+
+      <p><b>Precision</b> שואלת: <b>"מתוך הפעמים שניבאתי חיובי, כמה צדקתי?"</b> זה אחוז התחזיות החיוביות שהיו נכונות. <b>מודל זהיר</b> — לא מנבא חיובי בקלות — יקבל precision גבוה.</p>
+
+      <div class="formula-box">
+        $\text{Recall} = \dfrac{TP}{TP + FN}$
+      </div>
+
+      <p><b>Recall</b> (נקרא גם <b>Sensitivity</b> או <b>TPR</b>) שואלת: <b>"מתוך כל החיוביים האמיתיים, כמה תפסתי?"</b> זה אחוז המחלקה החיובית שהמודל זיהה. <b>מודל ערני</b> — מנבא חיובי בקלות — יקבל recall גבוה.</p>
+
+      <div class="formula-box">
+        $F_1 = \dfrac{2 \cdot \text{Precision} \cdot \text{Recall}}{\text{Precision} + \text{Recall}}$
+      </div>
+
+      <p><b>F1</b> הוא <b>ממוצע הרמוני</b> של precision ו-recall. <b>לא</b> ממוצע אריתמטי! ההרמוני "מעניש" כשאחד מהשניים נמוך — לא ניתן לקבל F1 גבוהה עם recall של $0$, גם אם precision מושלם.</p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תא 8</span> (חישוב 3 המדדים על Challenger).
+        </span>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>תוצאות Challenger ב-$t = 0.5$</h3>
+        <ul>
+          <li><b>Precision = $4/(4+0) = 1.000$</b> — כל החיזויים החיוביים שלנו <b>אמיתיים</b>. אפס אזעקות שווא.</li>
+          <li><b>Recall = $4/(4+2) = 0.667$</b> — תפסנו $4$ מתוך $6$ כשלים אמיתיים. <b>פספסנו שניים.</b></li>
+          <li><b>F1 = $0.80$</b> — איזון בינוני-טוב. הוא מעדיף שני המדדים יחד.</li>
+        </ul>
+        <p style="margin-top:8px;"><b>המודל זהיר אבל לא ערני מספיק.</b> Precision מצוין; Recall — יש מקום לשיפור. הסיבה: בסף $0.5$ המודל "מהמר על בטוח" — אבל פספס שני אירועים שהיה לו $\hat p$ נמוך מ-$0.5$ עליהם.</p>
+      </div>
+
+      <p>השאלה הטבעית: <b>אם נוריד את הסף, נתפוס יותר?</b> נראה את ה-trade-off:</p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תא 9</span> (גרף Precision/Recall/F1 vs threshold).
+        </span>
+      </div>
+
+      <div class="callout">
+        <h3>הדמיון לרופא — TP/FP/FN/TN בעולם הקליני</h3>
+        <p>דמיינו רופא שמסנן מטופלים למחלה. לכל מטופל הוא נותן תחזית: "חולה" או "בריא". <b>4 מצבים אפשריים — בדיוק אותם 4 משבצות:</b></p>
+        <table style="width:100%; border-collapse:collapse; margin:8px 0; text-align:center;">
+          <thead>
+            <tr style="border-bottom:2px solid var(--color-border);">
+              <th style="padding:8px;"></th>
+              <th style="padding:8px;">חיזוי: חולה</th>
+              <th style="padding:8px;">חיזוי: בריא</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td style="padding:8px; font-weight:bold;">בפועל: חולה</td><td style="padding:8px;"><b>TP</b> — זוהה ומטופל</td><td style="padding:8px;"><b>FN — פספסנו!</b> חולה הולך הביתה ללא טיפול</td></tr>
+            <tr><td style="padding:8px; font-weight:bold;">בפועל: בריא</td><td style="padding:8px;"><b>FP — אזעקת שווא</b><br>טסט מיותר, חרדה</td><td style="padding:8px;"><b>TN</b> — שחרור נכון</td></tr>
+          </tbody>
+        </table>
+        <p style="margin-top:8px;"><b>בעולם הרפואי:</b> FN לרוב גרוע בהרבה מ-FP — חולה שפספסנו עלול להידרדר. אזעקת שווא היא רק טסט נוסף. <b>לכן ברפואה לרוב מעדיפים recall גבוה</b>, גם במחיר precision.</p>
+        <p style="margin-top:8px;"><b>ב-Challenger:</b> אותו עקרון. FN (לשגר ולפוצץ) >> FP (להקפיא ולמתוח את הלו"ז). <b>המסר הכללי:</b> אין מדד שמתאים לכל בעיה. בכל בעיה צריך לחשוב <b>מה יקר יותר</b> — ולבחור threshold ומדד מתאימים.</p>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 5 — ROC + AUC                                                  -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-5">
+      <div class="section-banner">
+        <h2>פרק 5 — ROC + AUC</h2>
+      </div>
+
+      <p>עד כה דיברנו על threshold בודד. אבל המודל לא יודע איזה threshold ננקוט — הוא רק נותן $\hat p$. <b>הרעיון של ROC:</b> נסקור את <b>כל</b> ה-thresholds, ונשרטט את ה-trade-off בין שני המדדים הגיאומטריים:</p>
+
+      <div class="formula-box">
+        $\text{TPR} = \text{Recall} = \dfrac{TP}{TP + FN}, \qquad \text{FPR} = \dfrac{FP}{FP + TN}$
+      </div>
+
+      <p><b>TPR</b> (True Positive Rate) זה Recall שכבר ראינו. <b>FPR</b> (False Positive Rate) הוא <b>אחוז ה-FP מסה"כ השליליים</b> — שיעור האזעקות השווא. ROC עוקבת אחרי מסלול הנקודות $(\text{FPR}, \text{TPR})$ ככל שמשנים את ה-threshold.</p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תא 11</span> (ROC curve + AUC).
+        </span>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>איך לקרוא את ROC</h3>
+        <ul>
+          <li><b>הציר $X$:</b> FPR — אחוז האזעקות השווא. אנחנו רוצים נמוך.</li>
+          <li><b>הציר $Y$:</b> TPR (recall) — אחוז התפיסות האמיתיות. אנחנו רוצים גבוה.</li>
+          <li><b>נקודת ה"מודל המושלם":</b> $(0, 1)$ — פינה שמאל-עליונה. אפס FP, $100\%$ TPR.</li>
+          <li><b>הקו האלכסוני $y = x$:</b> מסווג רנדומלי (TPR = FPR לכל סף). <b>כל מודל מעל הקו טוב מ-random.</b></li>
+          <li><b>Challenger:</b> העקומה עוברת קרוב לפינה השמאל-עליונה — סימן למודל טוב.</li>
+        </ul>
+      </div>
+
+      <div class="formula-box">
+        $\text{AUC} = \int_0^1 \text{TPR}(\text{FPR}) \, d(\text{FPR})$
+      </div>
+
+      <p><b>AUC</b> (Area Under Curve) הוא <b>השטח מתחת ל-ROC</b>. מסכם את ROC במספר יחיד:</p>
+
+      <div class="callout">
+        <h3>איך לקרוא AUC ב-3 שניות</h3>
+        <p><b>סולם פרשנות:</b></p>
+        <ul>
+          <li><b>$\text{AUC} = 1.0$</b> — מסווג מושלם (אין בעולם).</li>
+          <li><b>$\text{AUC} \in [0.9, 1.0)$</b> — excellent.</li>
+          <li><b>$\text{AUC} \in [0.8, 0.9)$</b> — good.</li>
+          <li><b>$\text{AUC} \in [0.7, 0.8)$</b> — acceptable.</li>
+          <li><b>$\text{AUC} = 0.5$</b> — מסווג רנדומלי. אין מידע במודל.</li>
+          <li><b>$\text{AUC} < 0.5$</b> — המודל גרוע מ-random; להפוך את התחזיות שלו ייתן מסווג טוב יותר.</li>
+        </ul>
+        <p style="margin-top:8px;"><b>ב-Challenger:</b> $\text{AUC} = 0.87$ — good. המודל מבחין היטב בין כשלים לטיסות בטוחות.</p>
+        <p style="margin-top:8px;"><b>פירוש פרובבליסטי של AUC:</b> אם בוחרים תצפית חיובית ותצפית שלילית באקראי, ההסתברות שהמודל ייתן ל-חיובית $\hat p$ גבוה יותר היא בדיוק AUC. עבור Challenger — $87\%$ סיכוי.</p>
+      </div>
+
+      <div class="callout">
+        <h3>מה תלוי ב-threshold ומה לא</h3>
+        <p>חלק מהמדדים שהצגנו תלויים בבחירת סף, וחלק לא. הבחנה חשובה:</p>
+        <ul>
+          <li><b>תלויים ב-threshold (סף יחיד):</b> ה-<b>confusion matrix</b> כולה, וכל מדד שמחושב ממנה — accuracy, precision, recall, F1. <b>כל נקודה בודדת על ROC</b> היא threshold ספציפי.</li>
+          <li><b>לא תלויים ב-threshold:</b> ה-<b>ROC curve</b> וה-<b>PR curve</b> כולן — כי הן סוקרות את <b>כל</b> ה-thresholds יחד. <b>AUC</b> (השטח מתחת לעקומה) הוא סיכום של עקומה — לכן גם הוא חופשי מבחירת סף.</li>
+        </ul>
+        <p style="margin-top:8px;"><b>למה זה חשוב:</b> כשמשווים שני מודלים, accuracy או F1 בסף $0.5$ עלולים להטעות — אולי מודל אחד טוב יותר בסף $0.3$ ואחר ב-$0.7$. AUC משווה את <b>היכולת הכוללת</b>, בלי תלות בסף.</p>
+      </div>
+
+      <div class="callout">
+        <h3>מה קורה בקצוות — $t = 0$ ו-$t = 1$</h3>
+        <p>פונקציית ה-sigmoid מחזירה תמיד $\hat p \in (0, 1)$ — אסימפטוטית ל-$0$ ול-$1$ אבל לעולם לא נוגעת. ב-Challenger הטווח האמיתי הוא $[0.003, 0.986]$. <b>מה קורה בקצוות?</b></p>
+        <ul>
+          <li><b>$t = 0$:</b> התנאי $\hat p \ge 0$ נכון לכל תצפית $\Rightarrow$ <b>מנבאים $\hat Y = 1$ לכולן</b>. ב-Challenger: TP=$6$, FP=$17$, FN=$0$. Recall=$1.0$ (תפסנו הכל), FPR=$1.0$ (כל השליליים שווא). Precision=$6/23=0.26$ — בדיוק ה-<b>base rate</b>. <b>נקודת ROC: $(1, 1)$ — פינה ימנית-עליונה.</b></li>
+          <li><b>$t = 1$:</b> התנאי $\hat p \ge 1$ לא מתקיים לאף תצפית $\Rightarrow$ <b>מנבאים $\hat Y = 0$ לכולן</b>. זה בדיוק baseline-"תמיד שלילי" מפרק 3. Recall=$0$, FPR=$0$. <b>נקודת ROC: $(0, 0)$ — פינה שמאלית-תחתונה.</b></li>
+        </ul>
+        <p style="margin-top:8px;"><b>המסקנה:</b> ROC תמיד עוברת דרך $(0, 0)$ ו-$(1, 1)$ — שני קצוות טריוויאליים שלא תלויים במודל. <b>איכות המודל היא בדרך שביניהם</b>: האם הוא מטפס מהר משמאל (עולה ל-TPR גבוה לפני שאוסף FP), או הולך לאט באלכסון.</p>
+        <p style="margin-top:8px;"><b>תובנה נוספת:</b> ב-$t=0$ ה-Precision שווה תמיד ל-base rate. שינוי ביחס המחלקות (להוסיף שליליים) <b>מזיז את הנקודה הזאת ב-PR-curve</b>. ב-ROC הנקודה $(1,1)$ נשארת תמיד שם — וזאת בדיוק הסיבה ש-PR-curve תלוי ב-base rate ו-ROC לא.</p>
+      </div>
+
+      <div class="callout">
+        <h3>טיפ — מתי להעדיף PR-curve על פני ROC</h3>
+        <p><b>ROC + AUC לא תלויים ב-base rate</b> (יחס המחלקות). הסיבה: TPR ו-FPR מנורמלים בנפרד — TPR מחולק במספר החיוביים, FPR במספר השליליים. אם מכפילים את כמות השליליים פי $10$, FPR לא משתנה.</p>
+        <p style="margin-top:8px;"><b>אבל PR-curve כן תלוי ב-base rate.</b> Precision = $TP/(TP+FP)$ — כשמוסיפים הרבה שליליים, FP גדל יחסית ו-precision צונח. <b>ולכן בדאטה מאוד לא-מאוזן</b> (למשל $1\%$ חיוביים), PR-curve <b>רגיש יותר</b> למחלקה הקטנה ומשקף טוב יותר את ביצועי המודל בה.</p>
+        <p style="margin-top:8px;"><b>כלל אצבע:</b></p>
+        <ul>
+          <li><b>דאטה מאוזן יחסית</b> — ROC + AUC זה הסטנדרט.</li>
+          <li><b>דאטה מאוד לא-מאוזן</b> (זיהוי הונאות, מחלות נדירות) — PR-curve + PR-AUC.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 6 — Choosing threshold based on context                       -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-6">
+      <div class="section-banner">
+        <h2>פרק 6 — בחירת threshold לפי context</h2>
+      </div>
+
+      <p>סגירת המעגל. ראינו שהמודל מחזיר $\hat p$, ושהפיכה ל-$\hat Y$ דורשת threshold. <b>איך בוחרים?</b> תלוי בעלויות השגיאה הייחודיות לבעיה.</p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תא 13</span> (טבלת trade-off ב-Challenger).
+        </span>
+      </div>
+
+      <div class="qa">
+        <div class="question">
+          <b>שאלה לכיתה:</b> ב-Challenger, מה יקר יותר — <b>false positive</b> (להקפיא שיגור לחינם) או <b>false negative</b> (לשגר ולפוצץ)? איך זה משפיע על בחירת ה-threshold?
+        </div>
+        <button class="toggle-btn">גלה תשובה</button>
+        <div class="answer">
+          <p><b>FN יקר בהרבה.</b> FP $=$ עיכוב של ימים-שבועות בלוח הזמנים $=$ עלות כלכלית. FN $=$ אבדן $7$ אסטרונאוטים + הפסקת תוכנית המעבורות לשנים $=$ עלות שלא ניתנת לקיזוז.</p>
+          <p style="margin-top:8px;"><b>כדי להוריד FN — מורידים את ה-threshold.</b> למשל מ-$0.5$ ל-$0.3$ או אפילו $0.2$. זה יוצר יותר FP (התראות שווא), אבל כל אחת מהן זולה ביחס.</p>
+          <p style="margin-top:8px;"><b>הכלל הכללי:</b> $\text{optimal threshold}$ תלוי ב-cost ratio של FN ל-FP. אם FN יקר פי $10$ מ-FP, לא נסכים אפילו $1$ FN אם נוכל למנוע אותו ב-$9$ FP.</p>
+          <p style="margin-top:8px;"><b>ב-Challenger המוגבל:</b> מסתבר שגם בסף $0.2$ עדיין FN = $2$ (אותם $2$ כשלים שהמודל פספס לחלוטין — נתן להם $\hat p < 0.2$). הירידה לא עזרה — לא בגלל threshold, אלא בגלל מגבלת המודל עצמו על דאטה קטן.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 7 — Summary + look ahead to Poisson                           -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-7">
+      <div class="section-banner">
+        <h2>פרק 7 — סיכום + הצצה לשיעור 10</h2>
+      </div>
+
+      <p>סיימנו את <b>בלוק הלוגיסטיק</b> ($3/3$). שלושה שיעורים על מודל אחד — מהיסודות, דרך MLE, ועד הערכה. תרגיל אופציונלי לבית במחברת — חשבו על threshold לבעיית סיווג ספאם.</p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>
+          עבור ל-Jupyter — <span class="cell-ref">תאים 15–16</span> (תרגיל אופציונלי + תא קוד ריק).
+        </span>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- SUMMARY                                                              -->
+    <!-- ================================================================== -->
+    <section class="block" id="summary">
+      <div class="section-banner">
+        <h2>סיכום + הצצה לשיעור 10</h2>
+      </div>
+
+      <div class="callout">
+        <h3>4 נקודות לקחת מהיום</h3>
+        <ol>
+          <li><b>המודל מחזיר הסתברות; אנחנו צריכים החלטה.</b> Threshold הוא הכלל שהופך $\hat p$ ל-$\hat Y \in \{0, 1\}$. <b>ברירת המחדל $0.5$ אינה חובה.</b></li>
+          <li><b>Confusion matrix</b> סוגרת את ביצועי המודל ב-$4$ מספרים: TP, FP, FN, TN. <b>כל מדד אחר הוא יחס בין שניים מהם.</b></li>
+          <li><b>Accuracy לבד מטעה.</b> בדאטה לא-מאוזן, "תמיד נחזה את המחלקה הגדולה" יכול לתת accuracy גבוה ו-Recall של $0$. <b>צריך גם Precision, Recall, F1.</b></li>
+          <li><b>ROC + AUC</b> מסכמים את ביצועי המודל לאורך <b>כל</b> ה-thresholds. AUC הוא מדד יחיד שלא תלוי בבחירת סף. ב-Challenger: $\text{AUC} = 0.87$ — good.</li>
+        </ol>
+      </div>
+
+      <div class="callout">
+        <h3>סיכום בלוק הלוגיסטיק (שיעורים 07-08-09)</h3>
+        <ol>
+          <li><b>שיעור 07 — Logistic Intro.</b> משתנה בינארי שובר OLS. פונקציית sigmoid ממירה ציון לינארי להסתברות. log-odds ו-odds ratio.</li>
+          <li><b>שיעור 08 — MLE.</b> אין נוסחה סגורה ל-Logit. statsmodels מוצאת את $\hat\beta$ באופטימיזציה איטרטיבית של $\log L$. "תוכנה מטפסת על הר" עד לפסגה.</li>
+          <li><b>שיעור 09 (היום) — Evaluation.</b> Threshold, confusion matrix, accuracy/precision/recall/F1, ROC ו-AUC. <b>בחירה לפי context.</b></li>
+        </ol>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>בשיעור 10 — Poisson Regression</h3>
+        <p>עברנו רציף (OLS), אז בינארי (Logit). אבל יש סוג נתונים שלא דיברנו עליו: <b>counts</b>. מספר תאונות לחודש, מספר תקלות לשעה, מספר אירועי בטיחות לרבעון. לא רציף ($0, 1, 2, \dots$), לא בינארי.</p>
+        <p style="margin-top:8px;"><b>הפתרון:</b> <b>רגרסיית פואסון</b> עם <b>link function $\log$</b>. שייכת למשפחת ה-<b>GLM</b> (Generalized Linear Models) — אותה משפחה כמו logistic, עם התפלגות שונה.</p>
+        <p style="margin-top:8px;"><b>בשיעור 10:</b> counting process, log link, <b>offset לחשיפה משתנה</b> (לא כל הזמנים שווים), והרצה ב-<code class="ltr">sm.GLM</code> או <code class="ltr">sm.Poisson</code>. <b>בלוק חדש מתחיל.</b></p>
+      </div>
+
+    </section>
+
+  </main>
+
+  <footer class="lesson-footer">
+    Regression Course — Lesson 09 · TA: Raz Elbaz · עודכן: 2026-05-26
+  </footer>
+
+  <script src="shared/interactivity.js"></script>
+</body>
+</html>
