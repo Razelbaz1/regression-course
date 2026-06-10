@@ -1,0 +1,435 @@
+<!doctype html>
+<!--
+  Lesson 10 — Poisson Regression: Counting & Offset (Poisson block 1/2)
+  Aligned with: lesson_plans/lesson_10.md (8 blocks + summary)
+  Notebook anchor: regression-course/lesson10/Tirgul.ipynb (26 cells)
+-->
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lesson 10 — Poisson Regression: Counting & Offset</title>
+
+  <link rel="stylesheet" href="shared/palette.css">
+  <link rel="stylesheet" href="shared/components.css">
+  <link rel="stylesheet" href="shared/styles.css">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+          onload="renderMathInElement(document.body, {delimiters: [{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}]});"></script>
+</head>
+
+<body>
+
+  <header class="lesson-nav">
+    <a href="lesson_09.html"><bdi dir="ltr">←</bdi> השיעור הקודם: Evaluation</a>
+    <span class="lesson-name">Lesson 10 — Poisson Regression: Counting & Offset</span>
+    <a href="lesson_11.html">השיעור הבא: Dispersion <bdi dir="ltr">→</bdi></a>
+  </header>
+
+  <main>
+
+    <div class="lesson-title-banner">
+      <h1>Regression Course — Lesson 10</h1>
+      <div class="subtitle">Poisson Regression — Counting &amp; Offset</div>
+      <span class="pill">פרק: Poisson (1/2)</span>
+    </div>
+
+    <div class="prev-reminder">
+      <strong>תזכורת מהשיעור הקודם:</strong> סגרנו את בלוק הלוגיסטיק — threshold, confusion matrix, ו-AUC להערכת מסווג בינארי. ראינו רגרסיה על משתנה <b>רציף</b> (OLS) ועל משתנה <b>בינארי</b> (Logit). <b>היום</b> סוג נתונים חדש: <b>מנייה</b> — מספר תאונות, תקלות, אירועי בטיחות. לא רציף, לא בינארי, אלא $0, 1, 2, \dots$. מתחיל בלוק חדש: <b>רגרסיית פואסון</b>.
+    </div>
+
+    <nav class="toc">
+      <h2>תוכן עניינים</h2>
+      <ol>
+        <li><a href="#block-1">פרק 1 — למה לא OLS על מנייה</a></li>
+        <li><a href="#block-2">פרק 2 — התפלגות פואסון</a></li>
+        <li><a href="#block-3">פרק 3 — log-link ורגרסיה פואסונית</a></li>
+        <li><a href="#block-4">פרק 4 — בדיקת mean = variance</a></li>
+        <li><a href="#block-5">פרק 5 — יחס הקצב (IRR)</a></li>
+        <li><a href="#block-6">פרק 6 — חשיפה לסיכון</a></li>
+        <li><a href="#block-7">פרק 7 — offset במודל</a></li>
+        <li><a href="#block-8">פרק 8 — חיזוי עם offset</a></li>
+        <li><a href="#summary">סיכום + הצצה לשיעור 11</a></li>
+      </ol>
+    </nav>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 1 — Why not OLS on counts                                     -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-1">
+      <div class="section-banner">
+        <h2>פרק 1 — למה לא OLS על מנייה</h2>
+      </div>
+
+      <p>לפנינו דאטה ממפעל לייצור חלקי רכב: לכל עובד ידוע כמה חודשי ותק יש לו (<code class="ltr">expirience</code>) וכמה תאונות נרשמו לו לאורך הקריירה (<code class="ltr">accidents</code>). המשתנה המוסבר הוא <b>מנייה</b> — מספר שלם אי-שלילי. ננסה קודם את הכלי המוכר: OLS.</p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>עבור ל-Jupyter — <span class="cell-ref">תא 2</span> (טעינת הדאטה) ו-<span class="cell-ref">תא 3</span> (scatter).</span>
+      </div>
+
+      <p>ה-scatter מראה קשר עולה, אבל גם משהו מטריד: ככל שהותק גדל, <b>הפיזור</b> של מספר התאונות גדל איתו. נריץ OLS בכל זאת ונראה מה קורה.</p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>עבור ל-Jupyter — <span class="cell-ref">תא 4</span> (OLS + summary), <span class="cell-ref">תא 5</span> (קו ה-fit), <span class="cell-ref">תא 6</span> (residuals).</span>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>למה OLS נכשל על מנייה</h3>
+        <p>ה-$R^2$ יוצא $0.85$ — נראה "טוב". אבל שלוש בעיות שוברות את המודל:</p>
+        <ul>
+          <li><b>תחזיות שליליות.</b> בותק $0$ המודל חוזה $-5.43$ תאונות. מנייה שלילית חסרת משמעות — אי אפשר שיהיו פחות מ-$0$ אירועים.</li>
+          <li><b>שונות לא קבועה.</b> ה-residuals נפתחים כמו <b>מניפה</b>: השונות גדלה עם הממוצע. OLS מניח הומוסקדסטיות (שונות קבועה) — וכאן ההנחה מופרת באופן בוטה.</li>
+          <li><b>גם log-transform לא מציל.</b> אפשר לנסות $\log(y+1)$, וזה אפילו ייראה סביר — אבל ה-residuals עדיין יראו מבנה, וה-$0$-ים מאלצים תיקון מלאכותי. צריך מודל שמתוכנן למנייה מההתחלה.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 2 — The Poisson distribution                                  -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-2">
+      <div class="section-banner">
+        <h2>פרק 2 — התפלגות פואסון</h2>
+      </div>
+
+      <p>משתנה מקרי פואסוני מתאר <b>מספר אירועים ליחידת מידה</b> (לרוב זמן או מרחב). זו ההתפלגות הטבעית למנייה:</p>
+
+      <div class="formula-box">
+        $Y \sim \text{Poisson}(\lambda), \qquad P(Y = y) = \dfrac{e^{-\lambda} \lambda^{y}}{y!}, \qquad E[Y] = Var[Y] = \lambda$
+      </div>
+
+      <p>הפרמטר $\lambda$ הוא <b>קצב</b> האירועים — גם התוחלת וגם השונות. שתי תכונות שכבר פותרות את הבעיות של פרק 1: ההתפלגות נתמכת רק על $0, 1, 2, \dots$ (אין ערכים שליליים), והשונות <b>גדלה</b> עם התוחלת (בדיוק המניפה שראינו).</p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>עבור ל-Jupyter — <span class="cell-ref">תא 8</span> (PMF עבור כמה ערכי $\lambda$).</span>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>אינטואיציית mean = variance</h3>
+        <p>למה דווקא בפואסון התוחלת שווה לשונות? כי הפרמטר היחיד $\lambda$ קובע את <b>הכל</b> — אין פרמטר שונות נפרד כמו $\sigma^2$ בנורמלי. ככל שהקצב גבוה יותר, לא רק הממוצע עולה אלא גם הפיזור: $\sqrt{\lambda}$ הוא סטיית התקן.</p>
+        <p style="margin-top:8px;"><b>מה זה אומר על הדאטה:</b> אם המנייה באמת פואסונית, אזורים עם ממוצע גבוה <b>חייבים</b> להראות שונות גבוהה באותה מידה. זאת בדיוק המניפה ב-residuals של OLS — לא "בעיה" שצריך לתקן, אלא <b>חתימה</b> של תהליך מנייה. בפרק 4 נבדוק את זה כמותית.</p>
+        <p style="margin-top:8px;"><b>למה זה שובר את OLS אבל לא את פואסון:</b> OLS מניח שונות קבועה ולכן המניפה מפרה את הנחותיו. פואסון <b>מצפה</b> לשונות שגדלה עם הממוצע — זה חלק מהמודל, לא הפרה שלו.</p>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 3 — log-link and Poisson regression                          -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-3">
+      <div class="section-banner">
+        <h2>פרק 3 — log-link ורגרסיה פואסונית</h2>
+      </div>
+
+      <p>איך מחברים את $\lambda$ למשתנים המסבירים? לא ישירות — כי $X\beta$ יכול לצאת שלילי, ו-$\lambda$ חייב להיות חיובי. הפתרון: <b>link function</b> מסוג $\log$.</p>
+
+      <div class="formula-box">
+        $\log(\lambda_i) = b_0 + b_1 X_{i,1} + \dots + b_k X_{i,k} \qquad \Longleftrightarrow \qquad \lambda_i = e^{b_0 + b_1 X_{i,1} + \dots + b_k X_{i,k}}$
+      </div>
+
+      <p>ה-$\log$ ממפה את $\lambda > 0$ לכל הישר הממשי, כך ש-$X\beta$ חופשי לנוע — וה-$e^{(\cdot)}$ ההפוך מבטיח ש-$\lambda$ תמיד יוצא חיובי. זו שייכת למשפחת ה-<b>GLM</b> (Generalized Linear Models), אותה משפחה כמו logistic — רק עם התפלגות פואסון במקום בינומית.</p>
+
+      <div class="callout callout--accent">
+        <h3>דוגמה חישובית — בלי log מול עם log</h3>
+        <p>בכל מקרה המודל מחשב קודם <b>ציון לינארי</b> $\eta = b_0 + b_1 X$. הציון הזה יכול לצאת <b>כל מספר ממשי</b> — גם שלילי. השאלה היא איך הופכים אותו לקצב $\lambda$.</p>
+
+        <p><b>בלי log (קישור זהות):</b> פשוט מציבים $\lambda = \eta$. נניח שעבור קלט מסוים הציון יצא $\eta = -1.5$. אז:</p>
+        <div class="formula-box">
+          $\lambda = \eta = -1.5 \quad \Longrightarrow \quad$ קצב של $-1.5$ תאונות — חסר משמעות
+        </div>
+        <p>קצב שלילי בלתי אפשרי. וזו לא פינה נדירה: בכל פעם ש-$b_0 + b_1 X$ יורד מתחת ל-$0$, המודל קורס.</p>
+
+        <p><b>עם log:</b> מגדירים $\log(\lambda) = \eta$, ולכן $\lambda = e^{\eta}$. אותו ציון $\eta = -1.5$ נותן עכשיו:</p>
+        <div class="formula-box">
+          $\lambda = e^{\eta} = e^{-1.5} \approx 0.22 \quad >\, 0 \;\checkmark$
+        </div>
+        <p>קטן, אבל חיובי. ה-$e^{(\cdot)}$ "מועך" כל ציון ממשי לתחום החיובי — בדיוק מה שקצב דורש.</p>
+
+        <p><b>ולכן צריך להפעיל אקספוננט כדי לקרוא ערך אמיתי.</b> המקדמים בפלט הם על <b>סקאלת ה-log</b>. ניקח את המודל המאומד שלנו ($b_0 = 1.949$, $b_1 = 0.0321$) ועובד עם $5$ חודשי ותק:</p>
+        <div class="formula-box">
+          $\eta = 1.949 + 0.0321 \cdot 5 \approx 2.11 \;\; (\text{log scale}) \qquad \lambda = e^{2.11} \approx 8.24 \text{ accidents}$
+        </div>
+        <p>הציון $2.11$ לבדו לא קריא — רק אחרי $e^{2.11}$ מקבלים $8.24$ תאונות (זהה ל-<code class="ltr">predict</code> בתא 15). אותו רעיון יחזור בפרק 5: כדי לפרש את $b_1$ עצמו כאפקט על הקצב, מפעילים עליו $\exp$ ומקבלים את ה-IRR.</p>
+      </div>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>עבור ל-Jupyter — <span class="cell-ref">תא 10</span> (<code class="ltr">sm.GLM</code> עם <code class="ltr">family=Poisson()</code>) ו-<span class="cell-ref">תא 11</span> (עקומת ה-fit).</span>
+      </div>
+
+      <p>בפלט שמים לב ל-<b>Link Function: Log</b> ול-<b>Model Family: Poisson</b>. עקומת ה-fit נשארת חיובית ועולה בצורה מעריכית — מתאימה לדאטה בלי לחצות ל-תחום השלילי.</p>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 4 — Checking mean = variance                                 -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-4">
+      <div class="section-banner">
+        <h2>פרק 4 — בדיקת mean = variance</h2>
+      </div>
+
+      <p>ההנחה המרכזית של פואסון היא $E[Y] = Var[Y]$. איך בודקים אותה? הבעיה: לכל ערך $X$ לרוב יש תצפית בודדת — אי אפשר למדוד שונות מנקודה אחת. הפתרון: <b>bucketing</b>.</p>
+
+      <div class="callout">
+        <h3>הרעיון של bucketing</h3>
+        <p>מחלקים את טווח ה-$X$ לכמה אזורים. בכל אזור יש מספיק תצפיות כדי לחשב <b>גם ממוצע וגם שונות</b> של המנייה. אז משרטטים שונות מול ממוצע. אם הדאטה פואסוני — הנקודות אמורות ליפול סביב הקו $\text{variance} = \text{mean}$.</p>
+      </div>
+
+      <div class="qa">
+        <div class="question">
+          <b>שאלה לכיתה:</b> האם ה-buckets חייבים להיות בטווחים <b>קבועים</b> (אותו רוחב לכל אזור)?
+        </div>
+        <button class="toggle-btn">גלה תשובה</button>
+        <div class="answer">
+          <p><b>לא.</b> טווחים שווי-רוחב הם הבחירה הפשוטה ביותר, אבל לא חובה. מה ש<b>באמת</b> חשוב: שבכל bucket יהיו <b>מספיק תצפיות</b> כדי לאמוד ממוצע ושונות בצורה אמינה. ולכן בקוד (תא 13) מסננים אזורים עם פחות מ-$10$ תצפיות.</p>
+          <p style="margin-top:8px;">חלופה נפוצה ולעיתים עדיפה: <b>טווחים שווי-תדירות</b> (quantile bins) — כל bucket מכיל את <b>אותו מספר תצפיות</b>. כשהדאטה מפוזר לא-אחיד (הרבה נקודות באזור אחד, מעט באחר), שווי-תדירות נותן אמידה יציבה יותר בכל אזור: היכן שצפוף — אזורים צרים, היכן שדליל — אזורים רחבים.</p>
+        </div>
+      </div>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>עבור ל-Jupyter — <span class="cell-ref">תא 13</span> (bucketing: שונות מול ממוצע עם קו $y = x$).</span>
+      </div>
+
+      <p>הנקודות נופלות קרוב לקו $y = x$ — ההנחה $E[Y] = Var[Y]$ מתקיימת בדאטה הזה, ופואסון מתאים.</p>
+
+      <p><b>הערה:</b> מה קורה כששונות גדולה <b>בהרבה</b> מהתוחלת? זה נקרא <b>overdispersion</b>, והוא הנושא המרכזי של שיעור 11 — שם נלמד גם לכמת אותו וגם מה עושים כשהוא קורה.</p>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 5 — IRR                                                        -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-5">
+      <div class="section-banner">
+        <h2>פרק 5 — יחס הקצב (IRR)</h2>
+      </div>
+
+      <p>איך מפרשים את $b_1$ ברגרסיית פואסון? בגלל ה-log-link, הפירוש <b>כפלי</b>, לא חיבורי. נסתכל על היחס בין הקצב ב-$X+1$ לקצב ב-$X$:</p>
+
+      <div class="formula-box">
+        $\dfrac{\lambda(X+1)}{\lambda(X)} = \dfrac{e^{b_0 + b_1 (X+1)}}{e^{b_0 + b_1 X}} = e^{b_1}$
+      </div>
+
+      <p>הגודל $e^{b_1}$ נקרא <b>IRR</b> — <span class="ltr">Incidence Rate Ratio</span>. עלייה של יחידה אחת ב-$X$ <b>מכפילה</b> את הקצב ב-$e^{b_1}$.</p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>עבור ל-Jupyter — <span class="cell-ref">תא 15</span> (חישוב IRR + אימות נומרי).</span>
+      </div>
+
+      <div class="qa">
+        <div class="question">
+          <b>שאלה לכיתה:</b> מה קורה ל-IRR אם $b_1 = 0$?
+        </div>
+        <button class="toggle-btn">גלה תשובה</button>
+        <div class="answer">
+          <p>$e^{0} = 1$. הקצב <b>לא משתנה</b> כש-$X$ עולה — כלומר ל-$X$ אין אפקט על מספר האירועים. בדיוק כמו ש-$b_1 = 0$ ב-OLS אומר "אין שיפוע", כאן זה אומר IRR $= 1$: הכפלה ב-$1$ משאירה את הקצב כמו שהוא.</p>
+        </div>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>IRR — פירוש המקדם כיחס קצב</h3>
+        <p>בדאטה של המפעל יצא $b_1 = 0.0321$, ולכן IRR $= e^{0.0321} = 1.033$. כל חודש ותק נוסף <b>מכפיל</b> את קצב התאונות ב-$1.033$ — עלייה של $3.3\%$.</p>
+        <p style="margin-top:8px;"><b>אימות נומרי</b> (תא 15): התחזית בותק $5$ היא $8.24$ תאונות, ובותק $6$ היא $8.51$. היחס $8.51 / 8.24 = 1.033$ — בדיוק $e^{b_1}$.</p>
+        <table style="width:100%; border-collapse:collapse; margin:8px 0; text-align:center;">
+          <thead>
+            <tr style="border-bottom:2px solid var(--color-border);">
+              <th style="padding:8px;">$b_1$</th>
+              <th style="padding:8px;">$e^{b_1}$ (IRR)</th>
+              <th style="padding:8px;">פירוש</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td style="padding:8px;">$0$</td><td style="padding:8px;">$1.00$</td><td style="padding:8px;">אין אפקט</td></tr>
+            <tr><td style="padding:8px;">$0.0321$</td><td style="padding:8px;">$1.033$</td><td style="padding:8px;">$+3.3\%$ לכל יחידה</td></tr>
+            <tr><td style="padding:8px;">$0.69$</td><td style="padding:8px;">$2.00$</td><td style="padding:8px;">הקצב מוכפל</td></tr>
+            <tr><td style="padding:8px;">$-0.69$</td><td style="padding:8px;">$0.50$</td><td style="padding:8px;">הקצב נחתך לחצי</td></tr>
+          </tbody>
+        </table>
+        <p style="margin-top:8px;"><b>למה כפלי ולא חיבורי:</b> ב-OLS מקדם של $2$ מוסיף $2$ לתוצאה. בפואסון מקדם של $b_1$ <b>מכפיל</b> את הקצב ב-$e^{b_1}$, כי ה-$\log$ הופך חיבור ב-$X\beta$ לכפל ב-$\lambda$.</p>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 6 — Exposure                                                   -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-6">
+      <div class="section-banner">
+        <h2>פרק 6 — חשיפה לסיכון</h2>
+      </div>
+
+      <p>דאטה חדש, ממשרד התחבורה: מספר תאונות בקטעי כביש שונים. רוצים לחזות תאונות לפי העומס היומי הממוצע (<code class="ltr">AADT</code>). אבל יש מלכוד: לכל קטע כביש <b>אורך שונה</b> — מ-$0.01$ ועד כמעט $20$ מייל.</p>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>עבור ל-Jupyter — <span class="cell-ref">תא 17</span> (טעינת הדאטה) ו-<span class="cell-ref">תא 18</span> (היסטוגרמה של אורכי הקטעים).</span>
+      </div>
+
+      <div class="callout">
+        <h3>למה החשיפה משנה — סיפור הנסועה</h3>
+        <p>קטע כביש ארוך פי $10$ צפוי ליותר תאונות פשוט בגלל האורך, גם אם הוא בדיוק <b>באותה רמת בטיחות</b>. אם נספור תאונות מוחלטות, נשווה תפוחים לתפוזים.</p>
+        <p style="margin-top:8px;"><b>דוגמה:</b> בתקופת הסגרים בקורונה היו פחות תאונות דרכים. שיפור בבטיחות? לא בהכרח — היתה גם פחות <b>נסועה</b> (סך הק"מ שנסעו כל הרכבים). אם נבדוק תאונות <b>לקילומטר נסיעה</b>, נראה שלעיתים אין שינוי אמיתי בבטיחות. החשיפה השתנתה, לא הסיכון.</p>
+        <p style="margin-top:8px;"><b>המסקנה:</b> צריך למדל <b>קצב</b> — תאונות ליחידת חשיפה — ולא מנייה מוחלטת. הכלי לכך נקרא <b>offset</b>.</p>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 7 — Offset in the model                                        -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-7">
+      <div class="section-banner">
+        <h2>פרק 7 — offset במודל</h2>
+      </div>
+
+      <p>נסמן ב-$m_i$ את החשיפה של תצפית $i$ (כאן: אורך הקטע במיילים). אנחנו רוצים למדל את <b>הקצב</b> $E[y_i] / m_i$, לא את $E[y_i]$ עצמו.</p>
+
+      <div class="qa">
+        <div class="question">
+          <b>שאלה לכיתה:</b> כדי לנרמל לפי חשיפה, למה מוסיפים למודל את $\log(\text{exposure})$ ולא את exposure עצמו?
+        </div>
+        <button class="toggle-btn">גלה תשובה</button>
+        <div class="answer">
+          <p><b>כי ה-link הוא $\log$, וזה מה שהופך "לחלק ב-$m$" ל"לחבר $\log(m)$".</b> נראה את זה בשני צעדים:</p>
+          <p style="margin-top:8px;"><b>צעד 1 — מה רוצים למדל.</b> לא את המנייה הגולמית $E[y]$, אלא את ה<b>קצב</b> $E[y]/m$ (תאונות למייל). מפעילים $\log$ על הקצב:</p>
+          <div class="formula-box">
+            $\log\!\left(\dfrac{E[y]}{m}\right) = \log(E[y]) - \log(m) = X\beta$
+          </div>
+          <p style="margin-top:8px;"><b>צעד 2 — מבודדים את $\log(E[y])$:</b> מעבירים את $\log(m)$ לצד ימין, והוא נכנס עם <b>מקדם קבוע $1$</b> — לא מקדם שנאמד:</p>
+          <div class="formula-box">
+            $\log(E[y]) = X\beta + \underbrace{1 \cdot \log(m)}_{\text{offset}}$
+          </div>
+          <p style="margin-top:8px;"><b>למה דווקא מקדם $1$ ולא נאמד?</b> כי אנחנו כבר <b>יודעים</b> איך החשיפה משפיעה: קטע ארוך פי $2$ צפוי לפי $2$ תאונות, בדיוק. זו עובדה, לא משהו ללמוד מהדאטה. ה-offset "מקבע" את הידע הזה.</p>
+          <p style="margin-top:8px;"><b>ואם היינו מוסיפים את $m$ (או $\log m$) כרגרסור רגיל?</b> אז statsmodels היה <b>אומד</b> לו מקדם — כלומר שואל "כמה החשיפה מתואמת עם התאונות?", כאילו האפקט שלה לא ידוע. זה ההפך מנרמול: זה הופך את החשיפה ל"עוד $X$" במקום למכנה שמחלקים בו.</p>
+        </div>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>הפיתוח — מאיפה ה-offset מגיע</h3>
+        <p>מתחילים מהמשוואה לקצב, ומפעילים $\log$ צעד-צעד:</p>
+        <div class="formula-box">
+          $\dfrac{E[y_i]}{m_i} = e^{b_0 + b_1 X_i}$
+        </div>
+        <div class="formula-box">
+          $\log\!\left(\dfrac{E[y_i]}{m_i}\right) = b_0 + b_1 X_i$
+        </div>
+        <div class="formula-box">
+          $\log(E[y_i]) - \log(m_i) = b_0 + b_1 X_i$
+        </div>
+        <div class="formula-box">
+          $\log(E[y_i]) = b_0 + b_1 X_i + \log(m_i)$
+        </div>
+        <div class="formula-box">
+          $E[y_i] = m_i \, e^{b_0 + b_1 X_i}$
+        </div>
+        <p style="margin-top:8px;">כאשר $m_i$ הוא החשיפה (מיילים) ו-$E[y_i]$ התחזית למספר התאונות בתצפית $i$. השורה הרביעית היא הצורה שמכניסים ל-statsmodels: $\log(m_i)$ הוא ה-<b>offset</b> — איבר בצד ימין עם מקדם קבוע $1$. בקוד: <code class="ltr">offset=np.log(data['Miles'])</code>.</p>
+      </div>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>עבור ל-Jupyter — <span class="cell-ref">תא 20</span> (עם offset מול בלי) ו-<span class="cell-ref">תא 21</span> (summary מלא).</span>
+      </div>
+
+      <div class="callout">
+        <h3>המקדמים זזים כשמוסיפים offset — ולמה</h3>
+        <p>אותו דאטה בדיוק, שני מודלים. רק ההבדל של ה-offset:</p>
+        <table style="width:100%; border-collapse:collapse; margin:8px 0; text-align:center;">
+          <thead>
+            <tr style="border-bottom:2px solid var(--color-border);">
+              <th style="padding:8px;"></th>
+              <th style="padding:8px;">מה המודל מסביר</th>
+              <th style="padding:8px;">$b_0$</th>
+              <th style="padding:8px;">$b_1(\text{AADT})$</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td style="padding:8px; font-weight:bold;">בלי offset</td><td style="padding:8px;">מנייה גולמית</td><td style="padding:8px;">$0.19$</td><td style="padding:8px;">$0.000580$</td></tr>
+            <tr><td style="padding:8px; font-weight:bold;">עם offset</td><td style="padding:8px;">קצב למייל</td><td style="padding:8px;">$-1.00$</td><td style="padding:8px;">$0.001001$</td></tr>
+          </tbody>
+        </table>
+        <p style="margin-top:8px;"><b>למה $b_1$ כמעט מוכפל ($0.00058 \rightarrow 0.00100$)?</b> בלי offset, המודל מסביר את המנייה הגולמית — אבל זו <b>מזוהמת באורך הקטע</b>: קטע ארוך צובר תאונות בלי קשר לעומס. השונות באורך "נבלעת" לתוך מקדם ה-AADT ומדללת אותו. עם offset, האורך מנוטרל והמודל מסביר <b>קצב למייל</b> — ולכן הקשר האמיתי בין עומס לקצב התאונות מתגלה <b>חזק יותר</b>.</p>
+        <p style="margin-top:8px;"><b>גם $b_0$ משנה משמעות:</b> בלי offset הוא log של מנייה; עם offset הוא log של <b>קצב הבסיס למייל</b> כש-$\text{AADT} = 0$.</p>
+        <p style="margin-top:8px;"><b>פירוש ה-IRR:</b> $e^{0.001001} = 1.001$ — כל יחידת AADT נוספת מכפילה את הקצב ב-$1.001$ (זעיר, $+0.1\%$). זה נראה קטן רק כי יחידה אחת של AADT היא זניחה: הטווח נע באלפים. ליחידה משמעותית — $+1000$ ב-AADT — הקצב מוכפל ב-$e^{0.001001 \cdot 1000} = e^{1.001} = 2.72$, כמעט פי $3$.</p>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- BLOCK 8 — Prediction with offset                                    -->
+    <!-- ================================================================== -->
+    <section class="block" id="block-8">
+      <div class="section-banner">
+        <h2>פרק 8 — חיזוי עם offset</h2>
+      </div>
+
+      <p>איך עושים חיזוי כשיש offset? פעולת החיזוי מחזירה את <b>הקצב</b> בלבד — כלומר תאונות <b>למייל בודד</b>. כדי לקבל את מספר התאונות הצפוי בקטע באורך $m_i$, מכפילים ב-$m_i$:</p>
+
+      <div class="formula-box">
+        $E[y_i] = m_i \, e^{b_0 + b_1 X_i}$
+      </div>
+
+      <div class="code-switch">
+        <span class="icon">🔧</span>
+        <span>עבור ל-Jupyter — <span class="cell-ref">תא 23</span> (חיזוי עם offset) ו-<span class="cell-ref">תאים 24–25</span> (תרגול עצמאי).</span>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>דוגמה — צעד אחר צעד</h3>
+        <p>נחזה את מספר התאונות הצפוי בקטע כביש עם עומס $\text{AADT} = 400$ ואורך $m = 3$ מייל. נשתמש במקדמי מודל ה-offset ($b_0 = -1.001$, $b_1 = 0.001001$).</p>
+
+        <p style="margin-top:8px;"><b>צעד 1 — הציון הלינארי.</b> מציבים את ה-AADT במשוואה (זה עדיין על סקאלת ה-log):</p>
+        <div class="formula-box">
+          $\eta = b_0 + b_1 \cdot \text{AADT} = -1.001 + 0.001001 \cdot 400 \approx -0.60$
+        </div>
+
+        <p style="margin-top:8px;"><b>צעד 2 — אקספוננט, לקבלת הקצב למייל.</b> זה מה ש-<code class="ltr">predict</code> מחזיר:</p>
+        <div class="formula-box">
+          $\lambda_{\text{mile}} = e^{\eta} = e^{-0.60} \approx 0.549 \;\; \text{accidents/mile}$
+        </div>
+
+        <p style="margin-top:8px;"><b>צעד 3 — הכפלה באורך, לקבלת המנייה לקטע השלם.</b> הקצב הוא למייל בודד; הקטע ארוך $3$ מייל:</p>
+        <div class="formula-box">
+          $E[y] = m \cdot \lambda_{\text{mile}} = 3 \cdot 0.549 \approx 1.65 \;\; \text{accidents}$
+        </div>
+
+        <p style="margin-top:8px;"><b>למה צריך את צעד 3 ידנית?</b> ה-offset ($\log m$) הושאר בחוץ בזמן ה-<code class="ltr">predict</code>, ולכן הפלט הוא הקצב ליחידת חשיפה אחת בלבד. מחזירים את החשיפה פנימה בדיוק לפי הנוסחה $E[y] = m \, e^{X\beta}$. <b>בלי</b> ההכפלה ב-$m$ היינו מדווחים $0.549$ — תשובה נכונה לשאלה אחרת ("כמה תאונות למייל"), לא לשאלה ששאלנו ("כמה תאונות בקטע השלם").</p>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- SUMMARY                                                              -->
+    <!-- ================================================================== -->
+    <section class="block" id="summary">
+      <div class="section-banner">
+        <h2>סיכום + הצצה לשיעור 11</h2>
+      </div>
+
+      <div class="callout">
+        <h3>4 נקודות לקחת מהיום</h3>
+        <ol>
+          <li><b>מנייה צריכה מודל משלה.</b> OLS נותן תחזיות שליליות ומפר הומוסקדסטיות. פואסון נתמך על $0, 1, 2, \dots$ ומצפה ששונות תגדל עם הממוצע.</li>
+          <li><b>log-link.</b> $\log(\lambda) = X\beta$ מבטיח $\lambda > 0$. שייך למשפחת ה-GLM, כמו logistic.</li>
+          <li><b>IRR $= e^{b_1}$.</b> הפירוש כפלי: עלייה של יחידה ב-$X$ מכפילה את הקצב ב-$e^{b_1}$.</li>
+          <li><b>offset לחשיפה משתנה.</b> כשהיחידות לא שוות (אורך כביש, שעות עבודה), ממדלים קצב ומוסיפים $\log(\text{exposure})$ עם מקדם קבוע $= 1$.</li>
+        </ol>
+      </div>
+
+      <div class="callout callout--accent">
+        <h3>בשיעור 11 — Dispersion</h3>
+        <p>כל הסיפור היום נשען על הנחה אחת: $E[Y] = Var[Y]$. אבל בדאטה אמיתי השונות לעיתים <b>גדולה בהרבה</b> מהתוחלת — תופעה שנקראת <b>overdispersion</b>.</p>
+        <p style="margin-top:8px;"><b>בשיעור 11:</b> איך מזהים overdispersion, איך מכמתים אותו (overdispersion parameter, מבחן chi-square), ומה עושים כשהוא קורה — הגשר ל-<b>Negative Binomial</b> בשיעור 12.</p>
+      </div>
+
+    </section>
+
+  </main>
+
+  <footer class="lesson-footer">
+    Regression Course — Lesson 10 · TA: Raz Elbaz · עודכן: 2026-06-02
+  </footer>
+
+  <script src="shared/interactivity.js"></script>
+</body>
+</html>
